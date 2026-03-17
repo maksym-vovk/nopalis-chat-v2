@@ -1971,6 +1971,7 @@ b {
 
 .modal-content-call__controls {
     display: flex;
+    flex-wrap: wrap;
     gap: 10px 16px;
 }
 
@@ -1997,7 +1998,8 @@ b {
     transform: translateY(0);
 }
 
-.back-from-call-time-btn {
+.back-from-call-time-btn,
+.close-call-time-btn {
     flex: 1;
     background-color: #e5e7eb;
     color: #111827;
@@ -2011,20 +2013,27 @@ b {
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
-.back-from-call-time-btn:hover {
+.back-from-call-time-btn:hover,
+.close-call-time-btn:hover {
     transform: translateY(-2px);
     color: #111827;
     background: #e5e7eb;
     box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
 }
 
-.back-from-call-time-btn:active {
+.back-from-call-time-btn:active,
+.close-call-time-btn:active {
     transform: translateY(0);
 }
 
-.back-from-call-time-btn:focus {
+.back-from-call-time-btn:focus,
+.close-call-time-btn:focus {
     color: #111827;
     background: #e5e7eb;
+}
+
+.close-call-time-btn {
+    flex-basis: 100%;
 }
 
 .thank-you-message {

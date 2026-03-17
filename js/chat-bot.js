@@ -1061,6 +1061,21 @@ class ChatBot {
                 document.body.style.overflow = 'auto';
             });
         }
+        const closeCallTimeBtn = callTimeModal?.querySelector('.close-call-time-btn');
+        if (closeCallTimeBtn) {
+            closeCallTimeBtn.addEventListener('click', () => {
+                // Відправляємо дані
+                this._sendDataToSheet({
+                    userID: this.userID,
+                    LastAction: this._formatKyivDate(),
+                    callRefused: true,
+                }).catch(() => {});
+
+                callTimeModal.classList.remove('active');
+                this.root.classList.add('hidden');
+                document.body.style.overflow = 'auto';
+            })
+        }
 
         if (!closeBtn) return;
 
