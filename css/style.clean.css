@@ -965,7 +965,7 @@ ul {
 
 /**/
 .course {
-    margin-top: 16px;
+    /*margin-top: 16px;*/
     border: 1px solid green;
     border-radius: 6px;
     padding: 8px 15px;
@@ -4808,11 +4808,12 @@ body:not(.rtl) .elementor-1490 .elementor-element.elementor-element-62e8f9ec .el
 
 /**/
 .course {
-    margin-top: 16px;
+    /*margin-top: 16px;*/
     border: 1px solid green;
     border-radius: 6px;
     padding: 8px 15px;
     transition: all 0.3s ease;
+    max-width: 400px;
 }
 
 .course.active {

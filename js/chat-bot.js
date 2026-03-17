@@ -440,58 +440,65 @@ class ChatBot {
 
         for (let i = 0; i < messages.length; i += 1) {
             const raw = messages[i];
-            let msg;
+
+            let baseValue;
             let messageTypingIndicator = null;
             let messageTypingDelay = null;
 
             if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
                 const rawText = raw.text ?? '';
-                msg = typeof rawText === 'function' ? rawText(this.state) : rawText;
+                baseValue = typeof rawText === 'function' ? rawText(this.state) : rawText;
                 messageTypingIndicator = raw.typingIndicator || null;
                 messageTypingDelay = typeof raw.typingDelay === 'number' ? raw.typingDelay : null;
             } else {
-                msg = typeof raw === 'function' ? raw(this.state) : raw;
+                baseValue = typeof raw === 'function' ? raw(this.state) : raw;
             }
 
-            const delay =
-                messageTypingDelay !== null
-                    ? messageTypingDelay
-                    : typeof step.typingDelay === 'number'
-                        ? step.typingDelay
-                        : this._calcTypingDelay(msg);
+            // If a message function returns an array, send each item as its own bubble.
+            const messageParts = Array.isArray(baseValue) ? baseValue : [baseValue];
 
-            console.log(delay, 'message');
+            for (let partIndex = 0; partIndex < messageParts.length; partIndex += 1) {
+                const part = messageParts[partIndex];
+                const msg = typeof part === 'function' ? part(this.state) : part;
 
-            const indicatorType =
-                messageTypingIndicator ||
-                step.typingIndicator ||
-                this.config.typingIndicator ||
-                'dots';
+                const delay =
+                    messageTypingDelay !== null
+                        ? messageTypingDelay
+                        : typeof step.typingDelay === 'number'
+                            ? step.typingDelay
+                            : this._calcTypingDelay(msg);
 
-            // Mark as delivered immediately
-            this._setMessageStatus(this._lastUserMessageEl, 'delivered');
+                const indicatorType =
+                    messageTypingIndicator ||
+                    step.typingIndicator ||
+                    this.config.typingIndicator ||
+                    'dots';
 
-            // Schedule mark as read DURING typing delay (use typingDelayMin)
-            const readDelay = this.config.typingDelayMin || 600;
-            const readTimeout = setTimeout(() => {
+                // Mark as delivered immediately
+                this._setMessageStatus(this._lastUserMessageEl, 'delivered');
+
+                // Schedule mark as read DURING typing delay (use typingDelayMin)
+                const readDelay = this.config.typingDelayMin || 600;
+                const readTimeout = setTimeout(() => {
+                    this._setMessageStatus(this._lastUserMessageEl, 'read');
+                }, readDelay);
+
+                // Show typing
+                await this._showTyping(delay, indicatorType);
+
+                // Clear timeout if still pending (in case typing finished before read delay)
+                clearTimeout(readTimeout);
+
+                // Ensure it's marked as read after typing
                 this._setMessageStatus(this._lastUserMessageEl, 'read');
-            }, readDelay);
 
-            // Show typing
-            await this._showTyping(delay, indicatorType);
-
-            // Clear timeout if still pending (in case typing finished before read delay)
-            clearTimeout(readTimeout);
-
-            // Ensure it's marked as read after typing
-            this._setMessageStatus(this._lastUserMessageEl, 'read');
-
-            this._addMessage({
-                from: 'bot',
-                text: msg,
-                html: step.html,
-                stepId: i === 0 ? step.id : null,
-            });
+                this._addMessage({
+                    from: 'bot',
+                    text: msg,
+                    html: step.html,
+                    stepId: i === 0 && partIndex === 0 ? step.id : null,
+                });
+            }
         }
     }
 
@@ -549,7 +556,7 @@ class ChatBot {
             `;
 
         typingEl.innerHTML = `
-          <img src="${this.config.avatars.bot}" alt="Consultor" class="message-avatar">
+<!--          <img src="${this.config.avatars.bot}" alt="Consultor" class="message-avatar">-->
           ${indicatorMarkup}
         `;
 
@@ -696,7 +703,7 @@ class ChatBot {
         const timeLabel = this._formatMessageTime(new Date(sentAt));
 
         messageElement.innerHTML = `
-          <img src="${avatarSrc}" alt="Avatar" class="message-avatar">
+<!--          <img src="${avatarSrc}" alt="Avatar" class="message-avatar">-->
           <div class="message-content">
             <div class="message-text">${content}</div>
             <div class="message-meta">
@@ -707,6 +714,12 @@ class ChatBot {
         `;
 
         this.messagesContainer.appendChild(messageElement);
+        // Init any audio players rendered inside this new message bubble.
+        messageElement.querySelectorAll('.audio-player').forEach((player) => {
+            if (player.dataset.audioInit === '1') return;
+            setupAudioPlayer(player);
+            player.dataset.audioInit = '1';
+        });
         this._scrollToBottom();
 
         if (isUser) {
@@ -971,7 +984,7 @@ class ChatBot {
 
         // Додаємо аватар і контент як у звичайних повідомлень
         messageWrapper.innerHTML = `
-        <img src="${this.config.avatars.bot}" alt="Consultor" class="message-avatar">
+<!--        <img src="${this.config.avatars.bot}" alt="Consultor" class="message-avatar">-->
         <div class="message-content">
         </div>
     `;
@@ -1108,6 +1121,8 @@ class ChatBot {
                     thankYouMsg.classList.add('hidden');
                     this.root.classList.add('hidden');
                     document.body.style.overflow = 'auto';
+
+                    resetChatAudio()
                 }, 3000);
             });
         }
@@ -1133,6 +1148,7 @@ class ChatBot {
                 callTimeModal.classList.remove('active');
                 this.root.classList.add('hidden');
                 document.body.style.overflow = 'auto';
+                resetChatAudio()
             })
         }
 
@@ -1820,13 +1836,13 @@ const chatSteps = [
         ],
     },
     {
-        id: 'effect',
+        id: 'effect_audio',
         messages: [
-            'Nopalis está diseñado para <b>una pérdida de peso gradual y segura</b>.\nEl resultado no se observa <b>de inmediato<b>, sino gradualmente. Así es como sucede:',
-            '<b>✔ Después de 5–7 días de uso</b>\nLa digestión se normaliza, la hinchazón y la pesadez en el abdomen disminuyen.\nEl cuerpo comienza a limpiarse y prepararse para la pérdida de peso.',
-            '<b>✔ Después de 10 a 14 días</b>\nEl apetito y los antojos de dulces disminuyen.\nResulta más fácil controlar las porciones y evitar comer en exceso.',
-            '<b>✔ Después de 3-4 semanas</b>\nEl cuerpo comienza a utilizar más activamente las reservas de grasa como fuente de energía.\nAparecen los primeros cambios notables en el peso y el volumen.',
-            '<b>✔ Después de 1–2 meses de uso regular</b>\nEl peso disminuye de manera constante, el resultado es fijo.\nEl cuerpo se adapta al nuevo régimen sin estrés.',
+            {
+                text: `<div class="audio-player"><div class="controls"><button class="play-pause-button play"></button></div><audio><source src="${basePath}media/1.mp3" type="audio/mpeg"></audio><div class="progress-wrapper"><div class="progress"><div class="progress-bar"></div></div></div><div class="audio-time"><span class="audio-current__time">0:00</span></div></div>`,
+                typingIndicator: 'mic',
+                typingDelay: 15000
+            }
         ],
         options: [
             {label: 'Mirar las reseñas de los clientes', value: 'show_comments'},
@@ -1864,6 +1880,51 @@ const chatSteps = [
             return bot._getStepIndex('course_choice');
         }
     },
+    // {
+    //     id: 'effect',
+    //     messages: [
+    //         'Nopalis está diseñado para <b>una pérdida de peso gradual y segura</b>.\nEl resultado no se observa <b>de inmediato<b>, sino gradualmente. Así es como sucede:',
+    //         '<b>✔ Después de 5–7 días de uso</b>\nLa digestión se normaliza, la hinchazón y la pesadez en el abdomen disminuyen.\nEl cuerpo comienza a limpiarse y prepararse para la pérdida de peso.',
+    //         '<b>✔ Después de 10 a 14 días</b>\nEl apetito y los antojos de dulces disminuyen.\nResulta más fácil controlar las porciones y evitar comer en exceso.',
+    //         '<b>✔ Después de 3-4 semanas</b>\nEl cuerpo comienza a utilizar más activamente las reservas de grasa como fuente de energía.\nAparecen los primeros cambios notables en el peso y el volumen.',
+    //         '<b>✔ Después de 1–2 meses de uso regular</b>\nEl peso disminuye de manera constante, el resultado es fijo.\nEl cuerpo se adapta al nuevo régimen sin estrés.',
+    //     ],
+    //     options: [
+    //         {label: 'Mirar las reseñas de los clientes', value: 'show_comments'},
+    //         {label: 'Pasar a elegir el curso', value: 'course_selection'},
+    //     ],
+    //     onEnter: (bot, state) => {
+    //         // onEnter migration from id: 'goal_reco'
+    //         const goal = state.answers.goal;
+    //         let recommendedPacks = 3;
+    //
+    //         if (goal === '5_7') {
+    //             recommendedPacks = 3;
+    //         } else if (goal === '8_12') {
+    //             recommendedPacks = 5;
+    //         } else {
+    //             recommendedPacks = 6;
+    //         }
+    //
+    //         // 👉 Зберігаємо в state
+    //         state.answers.recommended_packs = recommendedPacks;
+    //
+    //         // 👉 Відправляємо одним запитом разом з goal (якщо він є)
+    //         const data = {
+    //             userID: bot.userID,
+    //             LastAction: bot._formatKyivDate(),
+    //             recommended_packs: recommendedPacks,
+    //         };
+    //
+    //         bot._sendDataToSheet(data).catch(() => {});
+    //     },
+    //     nextStep: ({option, state, bot}) => {
+    //         if (option.value === 'show_comments') {
+    //             return bot._getStepIndex('comments_1');
+    //         }
+    //         return bot._getStepIndex('course_choice');
+    //     }
+    // },
     {
         id: 'comments_1',
         messages: [
@@ -2030,10 +2091,16 @@ const chatSteps = [
                         return course.html.replace('<div class="course">', '<div class="course active">');
                     }
                     return course.html;
-                }).join('');
+                })
+
+                console.log(coursesHTML);
 
                 // separated text and cards
-                return 'Cada opción posterior <b>refuerza el efecto de la anterior</b>.' + coursesHTML
+                // return 'Cada opción posterior <b>refuerza el efecto de la anterior</b>.' + coursesHTML
+                return [
+                    'Cada opción posterior <b>refuerza el efecto de la anterior</b>.',
+                    ...coursesHTML
+                ]
             },
         ],
         options: [
@@ -2433,9 +2500,9 @@ document.addEventListener('DOMContentLoaded', () => {
         steps: chatSteps,
         typingDelayPerChar: 15,  // ms per character (default: 15)
         typingDelayMin: 600,     // minimum delay in ms (default: 600)
-        typingDelayMax: 6000,    // maximum delay in ms (default: 3000)
+        typingDelayMax: 1000,    // maximum delay in ms (default: 3000)
         startQueue: {
-            enabled: true,
+            enabled: false,
             // delay: () => 3000 + Math.floor(Math.random() * 4000), // 3–7 sec
             delay: () => 7000,
             text: `
@@ -2527,10 +2594,75 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-function getUniqProgressSteps(steps) {
-    return steps.filter((item, index, arr) => {
-        return arr.findIndex(i => i.value === item.value) === index
-    })
+function setupAudioPlayer(audioPlayer) {
+    if (!audioPlayer) return;
+
+    const audio = audioPlayer.querySelector('audio');
+    const playPauseButton = audioPlayer.querySelector('.play-pause-button');
+    const progressBar = audioPlayer.querySelector('.progress-bar');
+    const currentTimeDisplay = audioPlayer.querySelector('.audio-current__time');
+
+    if (!audio || !playPauseButton || !progressBar || !currentTimeDisplay) return;
+
+    let isPlaying = false;
+
+    playPauseButton.addEventListener("click", () => {
+        if (isPlaying) {
+            audio.pause();
+            playPauseButton.classList.remove('pause');
+            playPauseButton.classList.add('play');
+        } else {
+            audio.play();
+            playPauseButton.classList.remove('play');
+            playPauseButton.classList.add('pause');
+        }
+        isPlaying = !isPlaying;
+    });
+
+    audio.addEventListener("timeupdate", () => {
+        const currentTime = audio.currentTime;
+        const duration = audio.duration;
+
+        const currentMinutes = Math.floor(currentTime / 60);
+        const currentSeconds = Math.floor(currentTime % 60);
+        const listenTime = `${currentMinutes}:${currentSeconds < 10 ? '0' : ''}${currentSeconds}`;
+
+        currentTimeDisplay.textContent = listenTime;
+
+        const progress = (currentTime / duration) * 100;
+        progressBar.style.width = `${progress}%`;
+    });
+
+    audio.addEventListener("ended", () => {
+        playPauseButton.classList.remove('pause');
+        playPauseButton.classList.add('play');
+        isPlaying = false;
+    });
+}
+
+function resetChatAudio(root = document) {
+    root.querySelectorAll('.audio-player').forEach((audioPlayer) => {
+        const audio = audioPlayer.querySelector('audio');
+        const playPauseButton = audioPlayer.querySelector('.play-pause-button');
+        const progressBar = audioPlayer.querySelector('.progress-bar');
+        const currentTimeDisplay = audioPlayer.querySelector('.audio-current__time');
+
+        if (!audio) return;
+
+        audio.pause();
+        audio.currentTime = 0;
+
+        if (playPauseButton) {
+            playPauseButton.classList.remove('pause');
+            playPauseButton.classList.add('play');
+        }
+        if (progressBar) {
+            progressBar.style.width = '0%';
+        }
+        if (currentTimeDisplay) {
+            currentTimeDisplay.textContent = '0:00';
+        }
+    });
 }
 
 function normalizeTime(timeValue) {
