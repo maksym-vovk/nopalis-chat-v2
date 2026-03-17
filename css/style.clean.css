@@ -583,6 +583,7 @@ button {
 [type="submit"]:focus,
 button:focus {
     outline: 5px auto -webkit-focus-ring-color;
+    outline: none;
 }
 
 [type="button"]:focus,
