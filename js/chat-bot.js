@@ -1745,7 +1745,7 @@ const chatSteps = [
     {
         id: 'intro',
         messages: [
-            {text: "Test mic indicator and flexible typing delay: 5 sec", typingIndicator: 'mic', typingDelay: 5000},
+            // {text: "Test mic indicator and flexible typing delay: 5 sec", typingIndicator: 'mic', typingDelay: 5000},
             (state) => {
                 if (state.answers.clicked_start_chat) {
                     return '👋 ¡Hola! Bienvenido a <b>Nopalis</b>.\n' +
