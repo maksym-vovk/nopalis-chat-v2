@@ -94,9 +94,41 @@ class ChatBot {
                 bot: `${this.basePath}images/cb-ava.png`,
                 user: `${this.basePath}images/cb-user.png`,
             },
+            //queue
+            startQueue: {
+                enabled: false,
+                delay: 0,
+                text: '',
+                showTyping: true,
+                typingIndicator: 'dots',
+            },
         };
 
-        this.config = {...defaults, ...options};
+        this.config = {
+            ...defaults,
+            ...options,
+            avatars: {
+                ...defaults.avatars,
+                ...(options?.avatars || {}),
+            },
+            startQueue: {
+                ...defaults.startQueue,
+                ...(options?.startQueue || {}),
+            },
+        };
+
+        this._typingTimeout = null;
+        this._typingResolve = null;
+        this._queueTimeout = null;
+        this._queueResolve = null;
+        this._queueInterval = null;
+        this._queueCountdownEl = null;
+        this._queueEndAt = null;
+        this._queueCountdownToken = null;
+        this._runToken = 0;
+        //end queue
+
+        // this.config = {...defaults, ...options};
 
         this.chatPageKey = window.location.pathname.includes('subscribe') ? 'Sub' : 'LP';
         this.userID = localStorage.getItem('userID') || this._generateUserId();
@@ -141,14 +173,16 @@ class ChatBot {
 
     // ---------- Публічні методи ----------
 
-    start() {
+    async start() {
+        //queue
+        this._cancelPendingAsync();
         // 👉 Повний скид до початкового стану
-        this._isTyping = false;
+        // this._isTyping = false;
 
-        if (this._typingTimeout) {
-            clearTimeout(this._typingTimeout);
-            this._typingTimeout = null;
-        }
+        // if (this._typingTimeout) {
+        //     clearTimeout(this._typingTimeout);
+        //     this._typingTimeout = null;
+        // }
 
         // 👉 Спочатку очищаємо чат
         this._clearMessages();
@@ -176,6 +210,16 @@ class ChatBot {
         }
 
         // Якщо вже проходили частину сценарію — можна показати історію, але тут для простоти починаємо з поточного step
+        // this._runCurrentStep();
+
+        //queue
+        const runToken = this._runToken;
+        const canContinue = await this._runStartQueue(runToken);
+
+        if (!canContinue) {
+            return;
+        }
+
         this._runCurrentStep();
     }
 
@@ -190,6 +234,37 @@ class ChatBot {
         // if (this.root) {
         //     this.root.classList.remove('hidden');
         // }
+    }
+
+    _cancelPendingAsync() {
+        this._runToken += 1;
+        this._isTyping = false;
+
+        if (this._typingTimeout) {
+            clearTimeout(this._typingTimeout);
+            this._typingTimeout = null;
+        }
+        if (this._typingResolve) {
+            this._typingResolve(false);
+            this._typingResolve = null;
+        }
+
+        if (this._queueTimeout) {
+            clearTimeout(this._queueTimeout);
+            this._queueTimeout = null;
+        }
+        if (this._queueResolve) {
+            this._queueResolve(false);
+            this._queueResolve = null;
+        }
+
+        if (this._queueInterval) {
+            clearInterval(this._queueInterval);
+            this._queueInterval = null;
+        }
+
+        this._queueCountdownEl = null;
+        this._queueEndAt = null;
     }
 
     _resolveElement(elOrSelector, nameForError = null, required = true) {
@@ -320,14 +395,43 @@ class ChatBot {
 
         for (let i = 0; i < messages.length; i += 1) {
             const raw = messages[i];
-            const msg = typeof raw === 'function' ? raw(this.state) : raw;
+            // const msg = typeof raw === 'function' ? raw(this.state) : raw;
 
+            // support both old format (string/function) and object format
+            let msg;
+            let messageTypingIndicator = null;
+            let messageTypingDelay = null;
+
+            if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+                const rawText = raw.text ?? '';
+                msg = typeof rawText === 'function' ? rawText(this.state) : rawText;
+                messageTypingIndicator = raw.typingIndicator || null;
+                messageTypingDelay = typeof raw.typingDelay === 'number' ? raw.typingDelay : null;  // ← NEW
+            } else {
+                msg = typeof raw === 'function' ? raw(this.state) : raw;
+            }
+            //end
+
+            // Priority: message-level → step-level → length-based fallback
             const delay =
-                typeof step.typingDelay === 'number'
-                    ? step.typingDelay
-                    : this.config.typingDelay;
+                messageTypingDelay !== null                           // ← explicit per-message delay
+                    ? messageTypingDelay
+                    : typeof step.typingDelay === 'number'
+                        ? step.typingDelay
+                        : this._calcTypingDelay(msg);                // ← auto from length
+            //end
 
-            await this._showTyping(delay);
+            console.log(delay);
+
+            // priority: message-level > step-level > global default > dots
+            const indicatorType =
+                messageTypingIndicator ||
+                step.typingIndicator ||
+                this.config.typingIndicator ||
+                'dots';
+            //end
+
+            await this._showTyping(delay, indicatorType);
             this._addMessage({
                 from: 'bot',
                 text: msg,
@@ -337,7 +441,34 @@ class ChatBot {
         }
     }
 
-    _showTyping(delay) {
+    /**
+     * Calculates a typing delay based on message text length.
+     * Strips HTML tags before counting characters.
+     * Falls back to global typingDelay if no length-based config is set.
+     *
+     * @param {string} text
+     * @returns {number} delay in ms
+     */
+    _calcTypingDelay(text) {
+        const plain = String(text ?? '').replace(/<[^>]*>/g, ''); // strip HTML
+        const len = plain.length;
+
+        const msPerChar = typeof this.config.typingDelayPerChar === 'number'
+            ? this.config.typingDelayPerChar
+            : 15;   // 15ms per character by default
+
+        const min = typeof this.config.typingDelayMin === 'number'
+            ? this.config.typingDelayMin
+            : 600;  // minimum 600ms
+
+        const max = typeof this.config.typingDelayMax === 'number'
+            ? this.config.typingDelayMax
+            : 3000; // maximum 3000ms
+
+        return Math.min(max, Math.max(min, len * msPerChar));
+    }
+
+    _showTyping(delay, indicatorType) {
         if (!this.messagesContainer || delay <= 0) {
             return Promise.resolve();
         }
@@ -347,25 +478,141 @@ class ChatBot {
         const typingEl = document.createElement('div');
         // Як в оригінальному chat-bot.js: "message received" + typing-indicator
         typingEl.className = 'message received';
+
+        const indicatorMarkup =
+            indicatorType === 'mic'
+                ? `
+              <div class="typing-indicator">
+                <div class="typing-mic"></div>
+              </div>
+            `
+                : `
+              <div class="typing-indicator">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+              </div>
+            `;
+
         typingEl.innerHTML = `
           <img src="${this.config.avatars.bot}" alt="Consultor" class="message-avatar">
-          <div class="typing-indicator">
-            <div class="typing-dot"></div>
-            <div class="typing-dot"></div>
-            <div class="typing-dot"></div>
-          </div>
+          ${indicatorMarkup}
         `;
+
+        // typingEl.innerHTML = `
+        //   <img src="${this.config.avatars.bot}" alt="Consultor" class="message-avatar">
+        //   <div class="typing-indicator">
+        //     <div class="typing-dot"></div>
+        //     <div class="typing-dot"></div>
+        //     <div class="typing-dot"></div>
+        //   </div>
+        // `;
+
+        // typingEl.innerHTML = `
+        //   <img src="${this.config.avatars.bot}" alt="Consultor" class="message-avatar">
+        //   <div class="typing-indicator">
+        //     <div class="typing-mic"></div>
+        //   </div>
+        // `;
+
         this.messagesContainer.appendChild(typingEl);
         this._scrollToBottom();
 
+        // return new Promise(resolve => {
+        //     this._typingTimeout = setTimeout(() => {
+        //         typingEl.remove();
+        //         this._isTyping = false;
+        //         this._typingTimeout = null;
+        //         resolve();
+        //     }, delay);
+        // });
+
+        //queue
         return new Promise(resolve => {
+            this._typingResolve = resolve;
+
             this._typingTimeout = setTimeout(() => {
                 typingEl.remove();
                 this._isTyping = false;
                 this._typingTimeout = null;
-                resolve();
+
+                const done = this._typingResolve;
+                this._typingResolve = null;
+                done?.(true);
             }, delay);
         });
+    }
+    // queue
+    _wait(delay, runToken = this._runToken) {
+        return new Promise(resolve => {
+            this._queueResolve = resolve;
+
+            this._queueTimeout = setTimeout(() => {
+                this._queueTimeout = null;
+
+                const done = this._queueResolve;
+                this._queueResolve = null;
+
+                if (runToken !== this._runToken) {
+                    done?.(false);
+                    return;
+                }
+
+                done?.(true);
+            }, delay);
+        });
+    }
+    // queue
+    async _runStartQueue(runToken = this._runToken) {
+        const queue = this.config.startQueue;
+
+        if (!queue?.enabled) {
+            return true;
+        }
+
+        const delay =
+            typeof queue.delay === 'function'
+                ? Number(queue.delay(this.state)) || 0
+                : Number(queue.delay) || 0;
+
+        let queueMessageEl = null;
+
+        if (queue.text || queue.showCountdown) {
+            queueMessageEl = this._addMessage({
+                from: 'bot',
+                html: `
+                <div class="chat-queue-card">
+                    ${queue.text || ''}
+                    ${queue.showCountdown ? `
+                        <div class="chat-queue-timer">
+                            ${queue.countdownLabel || 'Remaining time:'}
+                            <span data-queue-remaining></span>
+                        </div>
+                    ` : ''}
+                </div>
+            `,
+            });
+        }
+
+        if (queue.showCountdown && queueMessageEl) {
+            this._startQueueCountdown(delay, queueMessageEl, runToken);
+        }
+
+        try {
+            if (delay <= 0) {
+                return runToken === this._runToken;
+            }
+
+            if (queue.showTyping) {
+                await this._showTyping(delay, queue.typingIndicator || 'dots');
+                return runToken === this._runToken;
+            }
+
+            return await this._wait(delay, runToken);
+        } finally {
+            this._stopQueueCountdown(runToken);
+            queueMessageEl?.remove();
+        }
     }
 
     _formatText(text) {
@@ -395,14 +642,69 @@ class ChatBot {
         const content = html || this._formatText(text);
 
         messageElement.innerHTML = `
-      <img src="${avatarSrc}" alt="Avatar" class="message-avatar">
-      <div class="message-content">
-        <div class="message-text">${content}</div>
-      </div>
-    `;
+          <img src="${avatarSrc}" alt="Avatar" class="message-avatar">
+          <div class="message-content">
+            <div class="message-text">${content}</div>
+          </div>
+        `;
 
+        // this.messagesContainer.appendChild(messageElement);
+        // this._scrollToBottom();
+
+        //queue
         this.messagesContainer.appendChild(messageElement);
         this._scrollToBottom();
+        return messageElement;
+    }
+
+    _formatQueueRemaining(ms) {
+        const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+
+        return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    _stopQueueCountdown(ownerToken = null) {
+        if (
+            ownerToken !== null &&
+            this._queueCountdownToken !== null &&
+            ownerToken !== this._queueCountdownToken
+        ) {
+            return;
+        }
+
+        if (this._queueInterval) {
+            clearInterval(this._queueInterval);
+            this._queueInterval = null;
+        }
+
+        this._queueCountdownEl = null;
+        this._queueEndAt = null;
+        this._queueCountdownToken = null;
+    }
+
+    _startQueueCountdown(delay, messageElement, ownerToken = this._runToken) {
+        const countdownEl = messageElement?.querySelector('[data-queue-remaining]');
+        if (!countdownEl || delay <= 0) return;
+
+        this._queueCountdownEl = countdownEl;
+        this._queueEndAt = Date.now() + delay;
+        this._queueCountdownToken = ownerToken;
+
+        const updateCountdown = () => {
+            if (!this._queueCountdownEl || this._queueEndAt === null) return;
+
+            const remaining = Math.max(0, this._queueEndAt - Date.now());
+            this._queueCountdownEl.textContent = this._formatQueueRemaining(remaining);
+
+            if (remaining <= 0) {
+                this._stopQueueCountdown(ownerToken);
+            }
+        };
+
+        updateCountdown();
+        this._queueInterval = setInterval(updateCountdown, 250);
     }
 
     _scrollToBottom() {
@@ -780,6 +1082,9 @@ class ChatBot {
         // Стандартна модалка
         if (modalConfirmBtn) {
             modalConfirmBtn.addEventListener('click', () => {
+                this._cancelPendingAsync();
+                this._clearMessages();
+
                 this.root.classList.add('hidden');
                 document.body.style.overflow = 'auto';
                 if (endModal) {
@@ -1350,8 +1655,8 @@ const chatSteps = [
     {
         id: 'intro',
         messages: [
+            {text: "Test mic indicator and flexible typing delay: 5 sec", typingIndicator: 'mic', typingDelay: 1000},
             (state) => {
-
                 if (state.answers.clicked_start_chat) {
                     return '👋 ¡Hola! Bienvenido a <b>Nopalis</b>.\n' +
                         'Te ayudaré a elegir el curso ideal para una <b>pérdida de peso cómoda y segura</b>, además de aprovechar <b>descuentos adicionales</b>.\n\n' +
@@ -1488,9 +1793,9 @@ const chatSteps = [
     {
         id: 'comments_1',
         messages: [
-            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-1.jpg" alt="" class="chat-review__avatar"><b>María, 44 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Para ser sincera, al principio tenía mis dudas. Pedí cuatro frascos a la vez y me alegro de haberlo hecho. Después del primer mes, ya veía resultados; empecé a bajar de peso poco a poco.</p></div>` +
-            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-2.jpg" alt="" class="chat-review__avatar"><b>Carmen, 52 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Muchas gracias por todo. No podía encontrar nada durante mucho tiempo, pero ahora realmente noté la diferencia después de solo unas semanas.</p></div>` +
-            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-3.jpg" alt="" class="chat-review__avatar"><b>Lucía, 39 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Al principio pedí dos frascos, pero luego me di cuenta de que necesitaba seguir usándolos. Después de un mes, empecé a notar que la ropa me quedaba más holgada.</p></div>`,
+            `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-1.jpg" alt="" class="chat-review__avatar"><b>María, 44 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Para ser sincera, al principio tenía mis dudas. Pedí cuatro frascos a la vez y me alegro de haberlo hecho. Después del primer mes, ya veía resultados; empecé a bajar de peso poco a poco.</p></div></div>`,
+            `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-2.jpg" alt="" class="chat-review__avatar"><b>Carmen, 52 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Muchas gracias por todo. No podía encontrar nada durante mucho tiempo, pero ahora realmente noté la diferencia después de solo unas semanas.</p></div></div>`,
+            `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-3.jpg" alt="" class="chat-review__avatar"><b>Lucía, 39 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Al principio pedí dos frascos, pero luego me di cuenta de que necesitaba seguir usándolos. Después de un mes, empecé a notar que la ropa me quedaba más holgada.</p></div></div>`,
         ],
         options: [
             { label: 'Más comentarios', value: 'more_comments' },
@@ -1506,9 +1811,9 @@ const chatSteps = [
     {
         id: 'comments_2',
         messages: [
-            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-4.jpg" alt="" class="chat-review__avatar"><b>Ana, 47 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">No creí al principio que me ayudaría, pero decidí probarlo. Ya estoy terminando mi segundo frasco y estoy pensando en pedir más.</p></div>` +
-            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-5.jpg" alt="" class="chat-review__avatar"><b>Rosa, 55 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Gracias. Bajar de peso después de los 50 es muy difícil, pero con este producto, es un poco más fácil de controlar.</p></div>` +
-            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-6.jpg" alt="" class="chat-review__avatar"><b>José, 41 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Al principio pedí dos frascos para probar. Después entendí que mejor tomar un curso. Ahora ya es tercer bote y hay resultado.</p></div>`,
+            `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-4.jpg" alt="" class="chat-review__avatar"><b>Ana, 47 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">No creí al principio que me ayudaría, pero decidí probarlo. Ya estoy terminando mi segundo frasco y estoy pensando en pedir más.</p></div></div>`,
+            `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-5.jpg" alt="" class="chat-review__avatar"><b>Rosa, 55 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Gracias. Bajar de peso después de los 50 es muy difícil, pero con este producto, es un poco más fácil de controlar.</p></div></div>`,
+            `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-6.jpg" alt="" class="chat-review__avatar"><b>José, 41 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Al principio pedí dos frascos para probar. Después entendí que mejor tomar un curso. Ahora ya es tercer bote y hay resultado.</p></div></div>`,
         ],
         options: [
             { label: 'Más comentarios', value: 'more_comments' },
@@ -1524,9 +1829,9 @@ const chatSteps = [
     {
         id: 'comments_3',
         messages: [
-            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-7.jpg" alt="" class="chat-review__avatar"><b>Teresa, 49 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Me alegro mucho de haber pedido cuatro frascos a la vez. Solo empiezas a ver cambios después del primero, y luego los resultados se hacen más notorios.</p></div>` +
-            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-8.jpg" alt="" class="chat-review__avatar"><b>Patricia, 37 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Gracias por el producto. Mi pérdida de peso no es drástica, sino gradual y constante, y me gusta.</p></div>` +
-            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-9.jpg" alt="" class="chat-review__avatar"><b>Elena, 60 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Estaba leyendo las reseñas durante mucho tiempo antes de comprar. Ahora yo entiendo que ha valido la pena pedirlo, me siento mucho mejor.</p></div>`,
+            `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-7.jpg" alt="" class="chat-review__avatar"><b>Teresa, 49 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Me alegro mucho de haber pedido cuatro frascos a la vez. Solo empiezas a ver cambios después del primero, y luego los resultados se hacen más notorios.</p></div></div>`,
+            `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-8.jpg" alt="" class="chat-review__avatar"><b>Patricia, 37 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Gracias por el producto. Mi pérdida de peso no es drástica, sino gradual y constante, y me gusta.</p></div></div>`,
+            `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-9.jpg" alt="" class="chat-review__avatar"><b>Elena, 60 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Estaba leyendo las reseñas durante mucho tiempo antes de comprar. Ahora yo entiendo que ha valido la pena pedirlo, me siento mucho mejor.</p></div></div>`,
         ],
         options: [
             { label: 'Más comentarios', value: 'more_comments' },
@@ -1542,9 +1847,9 @@ const chatSteps = [
     {
         id: 'comments_4',
         messages: [
-            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-10.jpg" alt="" class="chat-review__avatar"><b>Miguel, 53 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Lo compré para probarlo. Después de unas semanas, noté cambios, así que pedí más frascos para continuar.</p></div>` +
-            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-11.jpg" alt="" class="chat-review__avatar"><b>Guadalupe, 45 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Estoy muy agradecida. Noté que empecé a bajar de peso después del primer mes. Menos mal que compré varios botes enseguida.</p></div>` +
-            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-12.jpg" alt="" class="chat-review__avatar"><b>Sofía, 38 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Pensaba comprar un frasco, pero pedí tres. Ahora entiendo que hice lo correcto, porque los resultados no aparecieron de inmediato.</p></div>`,
+            `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-10.jpg" alt="" class="chat-review__avatar"><b>Miguel, 53 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Lo compré para probarlo. Después de unas semanas, noté cambios, así que pedí más frascos para continuar.</p></div></div>`,
+            `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-11.jpg" alt="" class="chat-review__avatar"><b>Guadalupe, 45 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Estoy muy agradecida. Noté que empecé a bajar de peso después del primer mes. Menos mal que compré varios botes enseguida.</p></div></div>`,
+            `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-12.jpg" alt="" class="chat-review__avatar"><b>Sofía, 38 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Pensaba comprar un frasco, pero pedí tres. Ahora entiendo que hice lo correcto, porque los resultados no aparecieron de inmediato.</p></div></div>`,
         ],
         options: [
             { label: 'Más comentarios', value: 'more_comments' },
@@ -1560,9 +1865,9 @@ const chatSteps = [
     {
         id: 'comments_5',
         messages: [
-            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-13.jpg" alt="" class="chat-review__avatar"><b>Raúla, 58 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Gracias por este producto. Los resultados son excelentes para mi edad y me siento mucho mejor.</p></div>` +
-            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-14.jpg" alt="" class="chat-review__avatar"><b>Daniel, 46 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Leía las reseñas y decidí probarlo. Ya noté cambios después de la primera lata y sigo con el tratamiento.</p></div>` +
-            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-15.jpg" alt="" class="chat-review__avatar"><b>Alejandro, 62 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Al principio dudaba en comprarlo. Pero vi resultados, así que pedí más para consolidar el efecto.</p></div>`,
+            `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-13.jpg" alt="" class="chat-review__avatar"><b>Raúla, 58 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Gracias por este producto. Los resultados son excelentes para mi edad y me siento mucho mejor.</p></div></div>`,
+            `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-14.jpg" alt="" class="chat-review__avatar"><b>Daniel, 46 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Leía las reseñas y decidí probarlo. Ya noté cambios después de la primera lata y sigo con el tratamiento.</p></div></div>`,
+            `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-15.jpg" alt="" class="chat-review__avatar"><b>Alejandro, 62 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Al principio dudaba en comprarlo. Pero vi resultados, así que pedí más para consolidar el efecto.</p></div></div>`,
         ],
         options: [
             { label: 'Pasar a elegir el curso', value: 'course_selection' },
@@ -2051,7 +2356,22 @@ document.addEventListener('DOMContentLoaded', () => {
         messagesContainer: '#chatMessages',
         root: '.chat-bot',
         steps: chatSteps,
-        typingDelay: 2000,
+        typingDelayPerChar: 15,  // ms per character (default: 15)
+        typingDelayMin: 600,     // minimum delay in ms (default: 600)
+        typingDelayMax: 1000,    // maximum delay in ms (default: 3000)
+        startQueue: {
+            enabled: false,
+            // delay: () => 3000 + Math.floor(Math.random() * 4000), // 3–7 sec
+            delay: () => 15000,
+            text: `
+                <b>Зажди, проффффессор курить!</b><br>
+                Треба трішки почекати щоб стати здоровим
+            `,
+            showTyping: false,
+            typingIndicator: 'dots',
+            showCountdown: true,
+            countdownLabel: 'Залишилось:',
+        },
         // storageKey: 'flexible_chat_bot_state', // прибрали, щоб не зберігати історію
         onAnswer: (step, answer, state) => {
             // місце для аналітики / API

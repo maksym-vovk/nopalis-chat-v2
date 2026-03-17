@@ -1799,7 +1799,14 @@ b {
 }
 
 /* ===== Chat Reviews ===== */
-.chat-review {
+.chat-review {}
+
+.chat-review__label {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.chat-review__wrapper {
     background: #f9fafb;
     border-radius: 12px;
     padding: 12px 14px;
@@ -2078,4 +2085,34 @@ b {
 /* Optional */
 .chat-progress-label {
     display: none;
+}
+
+
+/*queue*/
+.chat-queue-card {
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+    border: 1px solid #e5e7eb;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #374151;
+}
+
+.chat-queue-card b {
+    display: block;
+    margin-bottom: 4px;
+    color: #111827;
+}
+
+.chat-queue-timer {
+    margin-top: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #4b5563;
+}
+
+.chat-queue-timer span {
+    color: #111827;
+    font-variant-numeric: tabular-nums;
 }
