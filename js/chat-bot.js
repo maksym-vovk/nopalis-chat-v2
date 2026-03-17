@@ -1,0 +1,2349 @@
+/**
+ * Керує progress bar чатбота.
+ * Викликається ззовні через chatProgress.setProgress(value).
+ */
+class ChatBotProgress {
+    /**
+     * @param {Object} options
+     * @param {string|HTMLElement} options.barSelector   - контейнер (#chatProgressBar)
+     * @param {string|HTMLElement} options.fillSelector  - заповнювач (#chatProgressFill)
+     * @param {string|HTMLElement} [options.labelSelector] - підпис (#chatProgressLabel)
+     * @param {string|HTMLElement} [options.currentStepSelector]
+     * @param {string|HTMLElement} [options.totalStepsSelector]
+     */
+    constructor({ barSelector, fillSelector, labelSelector, currentStepSelector, totalStepsSelector } = {}) {
+        this.bar   = typeof barSelector  === 'string' ? document.querySelector(barSelector)  : barSelector;
+        this.fill  = typeof fillSelector === 'string' ? document.querySelector(fillSelector) : fillSelector;
+        this.label = labelSelector
+            ? (typeof labelSelector === 'string' ? document.querySelector(labelSelector) : labelSelector)
+            : null;
+        this.currentStep  = typeof currentStepSelector === 'string' ? document.querySelector(currentStepSelector) : currentStepSelector;
+        this.totalSteps  = typeof totalStepsSelector === 'string' ? document.querySelector(totalStepsSelector) : totalStepsSelector;
+
+        this._current = 0;
+        this.setSteps(0)
+
+        this.totalStepsValue = this.getTotalStepsValue(PROGRESS_MAP)
+    }
+
+    /**
+     * Встановлює прогрес (0–100).
+     * @param {number} value
+     */
+    setProgress(value) {
+        const clamped = Math.max(0, Math.min(100, value));
+        this._current = clamped;
+
+        if (this.fill)  this.fill.style.width = `${clamped}%`;
+        if (this.label) this.label.textContent = `${clamped}%`;
+    }
+
+    setSteps(currentStepValue = 0) {
+        if (this.currentStep) this.currentStep.textContent = String(currentStepValue);
+        if (this.totalSteps) this.totalSteps.textContent = String(this.totalStepsValue);
+    }
+
+    getTotalStepsValue(steps) {
+        const stepsGroupedByPercents = Object.groupBy(steps, ({ value }) => value);
+        return Object.values(stepsGroupedByPercents).length;
+    }
+
+    reset() {
+        this.setProgress(0);
+        this.setSteps(0);
+    }
+
+    get current() {
+        return this._current;
+    }
+}
+
+/**
+ * Простий, але гнучкий чатбот.
+ *
+ * Ідея:
+ * - Вся логіка сценарію описується в масиві steps (data-driven).
+ * - ChatBot відповідає лише за:
+ *   - рендер повідомлень і кнопок
+ *   - анімацію "друкування"
+ *   - зберігання простого стану (відповіді користувача)
+ * - Будь-які побічні ефекти (аналітика, запити до API) робляться через колбеки.
+ */
+
+class ChatBot {
+    /**
+     * @param {Object} options
+     * @param {HTMLElement|string} options.messagesContainer - елемент або селектор для контейнера повідомлень
+     * @param {HTMLElement|string} [options.root] - кореневий блок чату (для показу/приховування при потребі)
+     * @param {Array} options.steps - сценарій чату
+     * @param {number} [options.typingDelay=1200] - затримка "друкування"
+     * @param {string} [options.storageKey] - ключ у localStorage для збереження стану (опційно)
+     * @param {Function} [options.onAnswer] - (step, answer, state) => void
+     * @param {Function} [options.onFinish] - (state) => void
+     * @param {Object} [options.avatars] - аватарки
+     */
+    constructor(options) {
+        this.basePath = window.cdn_path ? window.cdn_path : '';
+
+        const defaults = {
+            typingDelay: 1200,
+            storageKey: null,
+            onAnswer: null,
+            onFinish: null,
+            avatars: {
+                bot: `${this.basePath}images/cb-ava.png`,
+                user: `${this.basePath}images/cb-user.png`,
+            },
+        };
+
+        this.config = {...defaults, ...options};
+
+        this.chatPageKey = window.location.pathname.includes('subscribe') ? 'Sub' : 'LP';
+        this.userID = localStorage.getItem('userID') || this._generateUserId();
+        localStorage.setItem('userID', this.userID);
+
+        this.accessKey = '1ce1a4041466d1775c7b6c04bbe90cae';
+        this.secretKey = 'b29cf96857345234354b8c78476bf636';
+
+        this.messagesContainer = this._resolveElement(
+            this.config.messagesContainer,
+            'messagesContainer'
+        );
+        this.root = this._resolveElement(this.config.root, null, false);
+
+        this.state = {
+            currentStepIndex: 0,
+            answers: {},
+        };
+
+        // Відновлення стану, якщо потрібне
+        if (this.config.storageKey) {
+            this._loadState();
+        }
+
+        this._isTyping = false;
+        this._init();
+
+        // Відправляємо початкові дати тільки при першому відвідуванні
+        const analyticsKey = `chatAnalytics_${this.userID}`;
+        const existingData = localStorage.getItem(analyticsKey);
+
+        if (!existingData) {
+            const now = new Date();
+            this._sendDataToSheet({
+                userID: this.userID,
+                FirstVisitUA: this._formatKyivDate(now),
+                FirstVisitMX: this._formatLocalDate(now),
+                LastAction: this._formatKyivDate(now),
+            }).catch(() => {});
+        }
+    }
+
+    // ---------- Публічні методи ----------
+
+    start() {
+        // 👉 Повний скид до початкового стану
+        this._isTyping = false;
+
+        if (this._typingTimeout) {
+            clearTimeout(this._typingTimeout);
+            this._typingTimeout = null;
+        }
+
+        // 👉 Спочатку очищаємо чат
+        this._clearMessages();
+        this._removeInteractiveBlocks();
+
+        // Скидаємо індекс кроку, але зберігаємо clicked_start_chat
+        const clickedStartChat = this.state.answers.clicked_start_chat;
+        const mainFormName = this.state.answers.main_form_name;
+        const mainFormPhone = this.state.answers.main_form_phone;
+
+        this.state = {
+            currentStepIndex: 0,
+            answers: {
+                clicked_start_chat: clickedStartChat || false,
+                main_form_name: mainFormName,
+                main_form_phone: mainFormPhone,
+            },
+            everChose2Packs: false
+        };
+
+        this._saveState();
+
+        if (this.messagesContainer) {
+            this.messagesContainer.scrollTop = 0;
+        }
+
+        // Якщо вже проходили частину сценарію — можна показати історію, але тут для простоти починаємо з поточного step
+        this._runCurrentStep();
+    }
+
+    // ---------- Приватні / внутрішні методи ----------
+
+    _init() {
+        if (!Array.isArray(this.config.steps) || this.config.steps.length === 0) {
+            console.error('[ChatBot] steps is empty or not provided');
+            return;
+        }
+
+        // if (this.root) {
+        //     this.root.classList.remove('hidden');
+        // }
+    }
+
+    _resolveElement(elOrSelector, nameForError = null, required = true) {
+        if (!elOrSelector) {
+            if (required) {
+                throw new Error(`[ChatBot] ${nameForError || 'Element'} is required`);
+            }
+            return null;
+        }
+
+        if (elOrSelector instanceof HTMLElement) return elOrSelector;
+
+        const el = document.querySelector(elOrSelector);
+        if (!el && required) {
+            throw new Error(
+                `[ChatBot] Cannot find element by selector: ${elOrSelector}`
+            );
+        }
+        return el;
+    }
+
+    _clearMessages() {
+        if (!this.messagesContainer) return;
+        this.messagesContainer.innerHTML = '';
+    }
+
+    _saveState() {
+        if (!this.config.storageKey) return;
+        try {
+            localStorage.setItem(
+                this.config.storageKey,
+                JSON.stringify(this.state)
+            );
+        } catch (_) {
+            // ігноруємо помилку (наприклад, забитий localStorage)
+        }
+    }
+
+    _loadState() {
+        try {
+            const raw = localStorage.getItem(this.config.storageKey);
+            if (!raw) return;
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object') {
+                this.state = {
+                    currentStepIndex: parsed.currentStepIndex ?? 0,
+                    answers: parsed.answers ?? {},
+                };
+            }
+        } catch (_) {
+            // ігноруємо
+        }
+    }
+
+    async _runCurrentStep() {
+        const step = this.config.steps[this.state.currentStepIndex];
+        if (!step) {
+            if (typeof this.config.onFinish === 'function') {
+                this.config.onFinish({...this.state});
+            }
+            return;
+        }
+
+        // Якщо step має умову пропуску
+        if (typeof step.shouldSkip === 'function') {
+            const shouldSkip = !!step.shouldSkip({
+                step,
+                state: this.state,
+            });
+            if (shouldSkip) {
+                this._goToNextStep();
+                return;
+            }
+        }
+
+        // 👉 НОВЕ: хук для побічних ефектів (показати форму, анімацію, скрол тощо)
+        if (typeof step.onEnter === 'function') {
+            step.onEnter(this, this.state);
+        }
+
+        // Показуємо повідомлення бота
+        await this._showBotMessages(step);
+
+
+        // 👉 НОВЕ: якщо крок має форму - показуємо її після повідомлень
+        if (step.showForm) {
+            this._showDeliveryForm();
+            // НЕ переходимо далі - чекаємо submit форми
+            return;
+        }
+
+        // Обробка options як функції
+        let options = step.options;
+        if (typeof options === 'function') {
+            options = options(this.state);
+        }
+
+        // 👉 Перевіряємо обчислену змінну options, а не step.options
+        const hasChoices = Array.isArray(options) && options.length > 0;
+        const expectsInput = !!step.expectFreeInput;
+
+        if (!hasChoices && !expectsInput) {
+            this._goToNextStep();
+            return;
+        }
+
+        // Рендер кнопок / інпуту
+        if (hasChoices) {
+            // 👉 Передаємо новий об'єкт з обчисленим масивом options
+            this._renderChoices({...step, options});
+        }
+
+        if (expectsInput) {
+            this._renderInput(step);
+        }
+    }
+
+    _goToNextStep() {
+        this.state.currentStepIndex += 1;
+        this._saveState();
+        this._runCurrentStep();
+    }
+
+    async _showBotMessages(step) {
+        const messages = Array.isArray(step.messages)
+            ? step.messages
+            : [step.message || ''];
+
+        for (let i = 0; i < messages.length; i += 1) {
+            const raw = messages[i];
+            const msg = typeof raw === 'function' ? raw(this.state) : raw;
+
+            const delay =
+                typeof step.typingDelay === 'number'
+                    ? step.typingDelay
+                    : this.config.typingDelay;
+
+            await this._showTyping(delay);
+            this._addMessage({
+                from: 'bot',
+                text: msg,
+                html: step.html, // якщо текст уже HTML
+                stepId: i === 0 ? step.id : null,
+            });
+        }
+    }
+
+    _showTyping(delay) {
+        if (!this.messagesContainer || delay <= 0) {
+            return Promise.resolve();
+        }
+
+        this._isTyping = true;
+
+        const typingEl = document.createElement('div');
+        // Як в оригінальному chat-bot.js: "message received" + typing-indicator
+        typingEl.className = 'message received';
+        typingEl.innerHTML = `
+          <img src="${this.config.avatars.bot}" alt="Consultor" class="message-avatar">
+          <div class="typing-indicator">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+          </div>
+        `;
+        this.messagesContainer.appendChild(typingEl);
+        this._scrollToBottom();
+
+        return new Promise(resolve => {
+            this._typingTimeout = setTimeout(() => {
+                typingEl.remove();
+                this._isTyping = false;
+                this._typingTimeout = null;
+                resolve();
+            }, delay);
+        });
+    }
+
+    _formatText(text) {
+        // Повторюємо formatMessage з оригіналу: \n -> <br>
+        return String(text ?? '').replace(/\n/g, '<br>');
+    }
+
+    _addMessage({from, text, html, stepId}) {
+        if (!this.messagesContainer) return;
+
+        const isUser = from === 'user';
+        // Як в оригіналі: sent / received
+        const typeClass = isUser ? 'sent' : 'received';
+
+        const messageElement = document.createElement('div');
+        messageElement.className = `message ${typeClass}`;
+
+        if (stepId) {
+            const isIdExist = document.getElementById(`question-${stepId}`);
+            !isIdExist ? messageElement.id = `question-${stepId}` : null
+        }
+
+        const avatarSrc = isUser
+            ? this.config.avatars.user
+            : this.config.avatars.bot;
+
+        const content = html || this._formatText(text);
+
+        messageElement.innerHTML = `
+      <img src="${avatarSrc}" alt="Avatar" class="message-avatar">
+      <div class="message-content">
+        <div class="message-text">${content}</div>
+      </div>
+    `;
+
+        this.messagesContainer.appendChild(messageElement);
+        this._scrollToBottom();
+    }
+
+    _scrollToBottom() {
+        if (!this.messagesContainer) return;
+        requestAnimationFrame(() => {
+            this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+        });
+    }
+
+    _removeInteractiveBlocks() {
+        // Прибираємо і наші інпути, і блоки з кнопками як в оригіналі
+        const oldInteractive = this.messagesContainer.querySelectorAll(
+            '.message-choices, .message-input-block, .message-buttons'
+        );
+        oldInteractive.forEach(el => el.remove());
+    }
+
+    _renderChoices(step) {
+        this._removeInteractiveBlocks();
+
+        const container = document.createElement('div');
+        container.className = 'message-buttons';
+
+
+        step.options.forEach((option, index) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'message-button';
+            btn.textContent = option.label;
+
+            // 👉 Додаємо унікальний ID для кожної кнопки
+            btn.id = `chat-btn-${step.id}-${option.value || index}`;
+
+            // 👉 Додаємо data-атрибути для зручності трекінгу
+            btn.dataset.stepId = step.id;
+            btn.dataset.optionValue = option.value || option.label;
+
+            if (option.color) {
+                btn.style.background = option.color;
+            }
+
+            // const isIntroBack = step.id === 'intro' && option.value === 'back';
+
+            const isIntroBack =
+                (step.id === 'intro' || step.id === 'intro_after_data') &&
+                option.value === 'back';
+
+            if (isIntroBack) {
+                btn.addEventListener('click', e => {
+                    e.preventDefault();
+
+                    const callTimeModal = document.getElementById('callTimeModal');
+                    const endModal = document.getElementById('endConsultationModal');
+
+                    if (this._shouldShowCallTimeModal()) {
+                        if (callTimeModal) {
+                            callTimeModal.classList.add('active');
+                        }
+                    } else {
+                        if (endModal) {
+                            endModal.classList.add('active');
+                            document.body.style.overflow = 'hidden';
+                        }
+                    }
+                });
+            } else {
+                btn.addEventListener('click', () => {
+                    this._removeInteractiveBlocks();
+                    this._handleChoice(step, option);
+                });
+            }
+
+            container.appendChild(btn);
+        });
+
+        this.messagesContainer.appendChild(container);
+        this._scrollToBottom();
+    }
+
+    _renderInput(step) {
+        // Наш кастомний блок для текстового вводу — верстка може бути будь-яка
+        this._removeInteractiveBlocks();
+
+        const block = document.createElement('div');
+        block.className = 'message-input-block';
+
+        // Обчислюємо placeholder (може бути функцією або рядком)
+        const placeholderValue =
+            typeof step.inputPlaceholder === 'function'
+                ? step.inputPlaceholder(this.state)
+                : step.inputPlaceholder || 'Escribe la respuesta...';
+
+        // Перевіряємо localStorage для автозаповнення
+        let defaultValue = '';
+        if (step.id === 'full_name' || step.id === 'main_form_name') {
+            defaultValue = localStorage.getItem('chatFormName') || JSON.parse(localStorage.getItem(`chatAnalytics_${this.userID}`))['main_form_name'] || '';
+        } else if (step.id === 'contact_phone' || step.id === 'main_form_phone') {
+            defaultValue = localStorage.getItem('chatFormPhone') || JSON.parse(localStorage.getItem(`chatAnalytics_${this.userID}`))['main_form_phone'] || '';
+        } else if (step.id === 'whatsapp_phone') {
+            defaultValue = '';
+        }
+
+        block.innerHTML = `
+          <input
+            type="${step.id === 'contact_phone' || step.id === 'whatsapp_phone' ? 'tel' : 'text'}"
+            class="message-input-field"
+            placeholder="${placeholderValue}"
+            ${step.id === 'contact_phone' || step.id === 'whatsapp_phone' ? 'inputmode="tel"' : ''}
+            value="${defaultValue}"
+          />
+          <button 
+            type="button" 
+            class="message-input-send form-button"
+            id="chat-btn-${step.id}-send"
+            data-step-id="${step.id}">
+            ${step.inputButtonLabel || 'Enviar'}
+          </button>
+        `;
+
+        const input = block.querySelector('.message-input-field');
+        const sendBtn = block.querySelector('.message-input-send');
+
+        const send = () => {
+            const value = (input.value || '').trim();
+            if (!value) return;
+
+            // 👉 Явно зберігаємо в localStorage перед відправкою
+            if (step.id === 'full_name' || step.id === 'main_form_name') {
+                localStorage.setItem('chatFormName', value);
+            } else if (step.id === 'contact_phone' || step.id === 'main_form_phone') {
+                localStorage.setItem('chatFormPhone', value);
+            }
+
+            this._handleInputAnswer(step, value);
+        };
+
+        sendBtn.addEventListener('click', send);
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                send();
+            }
+        });
+
+        input.addEventListener('blur', () => {
+            const value = (input.value || '').trim();
+            if (!value || !step.id) return;
+
+            const prev = this.state.answers[step.id];
+            if (prev === value) return; // avoid duplicate analytics
+
+            // Save to state and analytics (fire-and-forget)
+            this.state.answers[step.id] = value;
+            this._saveState();
+            this._sendStepAnalytics(step.id, value);
+
+            // Зберігаємо в localStorage для всіх варіантів імені та телефону
+            if (step.id === 'full_name' || step.id === 'main_form_name') {
+                localStorage.setItem('chatFormName', value);
+            } else if (step.id === 'contact_phone' || step.id === 'main_form_phone') {
+                localStorage.setItem('chatFormPhone', value);
+            }
+        });
+
+        this.messagesContainer.appendChild(block);
+        input.focus();
+
+        // Якщо є значення за замовчуванням, виділяємо його для зручності редагування
+        if (defaultValue) {
+            input.setSelectionRange(0, defaultValue.length);
+        }
+
+        this._scrollToBottom();
+    }
+
+    _showProductAnimation(quantity) {
+        if (!this.messagesContainer) return;
+
+        // Обгортаємо в структуру повідомлення з аватаром
+        const messageWrapper = document.createElement('div');
+        messageWrapper.className = 'message received';
+
+        const animationContainer = document.createElement('div');
+        animationContainer.className = 'product-selection';
+
+        // Заголовок
+        const title = document.createElement('h4');
+        title.textContent = `Tu curso: ${quantity} paquetes`;
+        title.style.cssText =
+            'margin-top: 0; margin-bottom: 16px; color: #1f2937; font-size: 16px; font-weight: 600;';
+
+        // Контейнер з анімацією товарів
+        const productContainer = document.createElement('div');
+        productContainer.className = 'product-animation';
+
+        // Створюємо елементи продуктів (накладаються один на одного)
+        for (let i = 0; i < quantity; i++) {
+            const productItem = document.createElement('div');
+            productItem.className = 'product-item';
+            productItem.style.marginLeft = i > 0 ? '-70px' : '0';
+            productContainer.appendChild(productItem);
+        }
+
+        animationContainer.appendChild(title);
+        animationContainer.appendChild(productContainer);
+
+        // Додаємо аватар і контент як у звичайних повідомлень
+        messageWrapper.innerHTML = `
+        <img src="${this.config.avatars.bot}" alt="Consultor" class="message-avatar">
+        <div class="message-content">
+        </div>
+    `;
+
+        const messageContent = messageWrapper.querySelector('.message-content');
+        messageContent.appendChild(animationContainer);
+
+        this.messagesContainer.appendChild(messageWrapper);
+        this._scrollToBottom();
+    }
+
+    initInfoPanel() {
+        const infoBtn = document.getElementById('infoBtn');
+        const infoPanel = document.getElementById('infoPanel');
+        const infoPanelClose = document.querySelector('.info-panel-close');
+        const chatHeader = document.querySelector('.chat-header');
+        let isInfoPanelOpen = false;
+
+        if (!infoBtn || !infoPanel || !infoPanelClose || !chatHeader) return;
+
+        infoBtn.addEventListener('click', e => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (isInfoPanelOpen) {
+                this.closeInfoPanel();
+                isInfoPanelOpen = false;
+            } else {
+                this.openInfoPanel();
+                isInfoPanelOpen = true;
+            }
+        });
+
+        infoPanelClose.addEventListener('click', () => {
+            if (isInfoPanelOpen) {
+                this.closeInfoPanel();
+                isInfoPanelOpen = false;
+            }
+        });
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && isInfoPanelOpen) {
+                this.closeInfoPanel();
+                isInfoPanelOpen = false;
+            }
+        });
+
+        document.addEventListener('click', e => {
+            if (isInfoPanelOpen && !infoPanel.contains(e.target)) {
+                this.closeInfoPanel();
+                isInfoPanelOpen = false;
+            }
+        });
+
+        infoPanel.addEventListener('click', e => {
+            e.stopPropagation();
+        });
+    }
+
+    openInfoPanel() {
+        const infoPanel = document.getElementById('infoPanel');
+        const infoBtn = document.getElementById('infoBtn');
+        const chatHeader = document.querySelector('.chat-header');
+
+        if (!infoPanel || !infoBtn || !chatHeader || !this.messagesContainer) return;
+
+        this.messagesContainer.classList.add('hidden');
+        infoPanel.classList.add('active');
+        infoBtn.style.transform = 'rotate(180deg)';
+        infoBtn.style.transition = 'transform 0.3s ease';
+        chatHeader.style.minHeight = '400px';
+    }
+
+    closeInfoPanel() {
+        const infoPanel = document.getElementById('infoPanel');
+        const infoBtn = document.getElementById('infoBtn');
+        const chatHeader = document.querySelector('.chat-header');
+
+        if (!infoPanel || !infoBtn || !chatHeader || !this.messagesContainer) return;
+
+        this.messagesContainer.classList.remove('hidden');
+        infoPanel.classList.remove('active');
+        infoBtn.style.transform = 'rotate(0deg)';
+        chatHeader.style.minHeight = 'auto';
+    }
+
+    _shouldShowCallTimeModal() {
+        return (
+            this.state.answers.contact_phone ||
+            this.state.answers.main_form_phone ||
+            this.state.answers.whatsapp_phone
+        );
+    }
+
+    initClose() {
+        const closeBtn = this.root.querySelector('.close-btn');
+        const endModal = document.getElementById('endConsultationModal');
+        const callTimeModal = document.getElementById('callTimeModal');
+        const modalConfirmBtn = endModal?.querySelector('#confirmEnd');
+        const modalCancelBtn = endModal?.querySelector('.cancel-btn');
+
+        // Submit call time
+        const submitCallTimeBtn = document.getElementById('submitCallTime');
+        if (submitCallTimeBtn) {
+            submitCallTimeBtn.addEventListener('click', () => {
+                const selectedTime = document.getElementById('callTimeSelect').value;
+                const timeSelector = callTimeModal.querySelector('.time-selector');
+                // const submitBtn = callTimeModal.querySelector('.submit-call-time-btn');
+                const controlButtons = callTimeModal.querySelector('.modal-content-call__controls');
+                const thankYouMsg = document.getElementById('thankYouMessage');
+
+                // Відправляємо дані
+                this._sendDataToSheet({
+                    userID: this.userID,
+                    LastAction: this._formatKyivDate(),
+                    preferred_call_time: normalizeTime(selectedTime),
+                }).catch(() => {});
+
+
+                delete this.state.answers.main_form_name;
+                delete this.state.answers.main_form_phone;
+                this._saveState();
+
+                // Показуємо подяку
+                timeSelector.style.display = 'none';
+                controlButtons.style.display = 'none';
+                thankYouMsg.classList.remove('hidden');
+
+                // Закриваємо через 3 секунди
+                setTimeout(() => {
+                    callTimeModal.classList.remove('active');
+                    timeSelector.style.display = '';
+                    controlButtons.style.display = '';
+                    thankYouMsg.classList.add('hidden');
+                    this.root.classList.add('hidden');
+                    document.body.style.overflow = 'auto';
+                }, 3000);
+            });
+        }
+
+        const backFromCallTimeBtn = callTimeModal?.querySelector('.back-from-call-time-btn');
+        if (backFromCallTimeBtn) {
+            backFromCallTimeBtn.addEventListener('click', () => {
+                // Просто закриваємо модалку, повертаємося до чату
+                callTimeModal.classList.remove('active');
+                document.body.style.overflow = 'auto';
+            });
+        }
+
+        if (!closeBtn) return;
+
+        closeBtn.addEventListener('click', () => {
+            // Перевіряємо умови для модалки з часом дзвінка
+            if (this._shouldShowCallTimeModal()) {
+                // Показуємо модалку з вибором часу
+                if (callTimeModal) {
+                    callTimeModal.classList.add('active');
+                }
+            } else {
+                // Показуємо стандартну модалку підтвердження
+                if (endModal) {
+                    endModal.classList.add('active');
+                }
+            }
+        });
+
+        // Стандартна модалка
+        if (modalConfirmBtn) {
+            modalConfirmBtn.addEventListener('click', () => {
+                this.root.classList.add('hidden');
+                document.body.style.overflow = 'auto';
+                if (endModal) {
+                    endModal.classList.remove('active');
+                }
+            });
+        }
+
+        if (modalCancelBtn) {
+            modalCancelBtn.addEventListener('click', () => {
+                if (endModal) {
+                    endModal.classList.remove('active');
+                }
+            });
+        }
+    }
+
+    initModal() {
+        const modal = document.getElementById('imageModal');
+        const modalClose = document.getElementById('modalClose');
+        const modalImage = document.getElementById('modalImage');
+
+        if (!modal || !modalClose || !modalImage) return;
+
+        modalClose.addEventListener('click', () => {
+            this.closeModal();
+        });
+
+        modal.addEventListener('click', e => {
+            if (e.target === modal) {
+                this.closeModal();
+            }
+        });
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                this.closeModal();
+            }
+        });
+    }
+
+    openModal(imageSrc, imageAlt = '') {
+        const modal = document.getElementById('imageModal');
+        const modalImage = document.getElementById('modalImage');
+
+        if (!modal || !modalImage) return;
+
+        modalImage.src = imageSrc;
+        modalImage.alt = imageAlt || '';
+
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    closeModal() {
+        const modal = document.getElementById('imageModal');
+        if (!modal) return;
+
+        modal.classList.remove('active');
+        document.body.style.display = '';
+    }
+
+    makeImageClickable(imageElement) {
+        if (!imageElement) return;
+        imageElement.classList.add('clickable-image');
+        imageElement.addEventListener('click', () => {
+            this.openModal(imageElement.src, imageElement.alt);
+        });
+    }
+
+    _handleChoice(step, option) {
+        // 1. показуємо відповідь користувача
+        this._addMessage({from: 'user', text: option.label});
+
+        // 2. зберігаємо її в state
+        if (step.id) {
+            this.state.answers[step.id] = option.value ?? option.label;
+            // 👉 відправляємо в таблицю
+            // this._sendStepAnalytics(step.id, option.value ?? option.label);
+
+            // 👉 Розраховуємо ціну для курсу ***
+            let price = null;
+            let chose2Packs = null;
+
+            if (step.id === 'course_choice') {
+                const packs = option.value;
+                // Приклад цін (замініть на ваші реальні)
+                const priceMap = {
+                    2: 1380,
+                    3: 1480,
+                    5: 1880,
+                    6: 2450,
+                };
+                price = priceMap[packs] || null;
+
+                // 👉 Якщо обрав 2 упаковки - встановлюємо прапорець назавжди
+                if (packs === 2) {
+                    this.state.everChose2Packs = true;
+                }
+
+                // Відправляємо поточний стан прапорця
+                chose2Packs = this.state.everChose2Packs || false;
+            }
+
+            // 👉 Відправляємо важливі кроки в Google Sheets ***
+            // const importantSteps = ['age', 'weight', 'goal', 'course_choice', 'involvement', 'delivery_phone_type'];
+            const importantSteps = ['age', 'weight', 'goal', 'course_choice', 'delivery_phone_type'];
+            if (importantSteps.includes(step.id)) {
+                const data = {
+                    userID: this.userID,
+                    LastAction: this._formatKyivDate(),
+                    [step.id]: option.name ?? option.value ?? option.label,
+                    // [step.id]: option.value ?? option.label,
+                };
+
+                // Додаємо ціну якщо є
+                if (price !== null) {
+                    data.price = price;
+                }
+
+                // 👉 Додаємо інформацію про вибір 2 упаковок
+                if (chose2Packs !== null) {
+                    data.chose_2_packs = chose2Packs;
+                }
+
+                this._sendDataToSheet(data).catch(() => {
+                });
+            }
+        }
+        this._saveState();
+
+        // 3. викликаємо колбек onAnswer (якщо є)
+        if (typeof this.config.onAnswer === 'function') {
+            this.config.onAnswer(step, option, {...this.state});
+        }
+
+        // 4. можемо зробити переходи не лише "наступний крок", а умовні
+        if (typeof step.nextStep === 'function') {
+            const newIndex = step.nextStep({
+                step,
+                option,
+                state: this.state,
+                bot: this,
+            });
+
+            if (typeof newIndex === 'number') {
+                this.state.currentStepIndex = newIndex;
+            } else {
+                this.state.currentStepIndex += 1;
+            }
+        } else if (typeof option.nextStepIndex === 'number') {
+            this.state.currentStepIndex = option.nextStepIndex;
+        } else {
+            this.state.currentStepIndex += 1;
+        }
+
+        this._saveState();
+        this._removeInteractiveBlocks();
+        this._runCurrentStep();
+    }
+
+    _generateUserId() {
+        return Math.floor(Math.random() * 900000) + 100000;
+    }
+
+    _getStepIndex(id) {
+        return this.config.steps.findIndex(step => step.id === id);
+    }
+
+    _formatLocalDate(date = new Date()) {
+        return (
+            String(date.getHours()).padStart(2, '0') +
+            ':' +
+            String(date.getMinutes()).padStart(2, '0') +
+            ':' +
+            String(date.getSeconds()).padStart(2, '0')
+        );
+    }
+
+    _formatKyivDate(date = new Date()) {
+        // Конвертуємо в київський час (UTC+2 або UTC+3 залежно від літнього часу)
+        const kyivDate = new Date(date.toLocaleString('en-US', { timeZone: 'Europe/Kyiv' }));
+
+        return (
+            kyivDate.getFullYear() +
+            '-' +
+            String(kyivDate.getMonth() + 1).padStart(2, '0') +
+            '-' +
+            String(kyivDate.getDate()).padStart(2, '0') +
+            ' ' +
+            String(kyivDate.getHours()).padStart(2, '0') +
+            ':' +
+            String(kyivDate.getMinutes()).padStart(2, '0') +
+            ':' +
+            String(kyivDate.getSeconds()).padStart(2, '0')
+        );
+    }
+
+    _showDeliveryForm() {
+        const form = document.querySelector('.offer__form');
+        if (!form) return;
+
+        // Спочатку форма видима, але прозора
+        form.classList.remove('hidden');
+        form.style.opacity = '0';
+        form.style.transform = 'translateY(10px)';
+        form.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+
+        // Після невеликої затримки плавно з'являється
+        setTimeout(() => {
+            form.style.opacity = '1';
+            form.style.transform = 'translateY(0)';
+        }, 50);
+
+        // Автозаповнення з localStorage, якщо є
+        const savedName = localStorage.getItem('chatFormName');
+        const savedPhone = localStorage.getItem('chatFormPhone');
+
+        const formElement = form.querySelector('.order__form');
+        if (!formElement) return;
+
+        const nameInput = formElement.querySelector('input[name="name"]');
+        const phoneInput = formElement.querySelector('input[name="phone"]');
+
+        if (nameInput && savedName) {
+            nameInput.value = savedName;
+        }
+        if (phoneInput && savedPhone) {
+            phoneInput.value = savedPhone;
+        }
+
+        // Додаємо валідацію телефону (тільки цифри)
+        if (phoneInput && !phoneInput.dataset.validationAdded) {
+            phoneInput.addEventListener('input', (e) => {
+                e.target.value = e.target.value.replace(/\D/g, '');
+            });
+            phoneInput.dataset.validationAdded = 'true';
+        }
+
+        // 👉 Додаємо обробники для відстеження змін полів
+        if (!formElement.dataset.fieldTrackingAdded) {
+            // Для звичайних input полів
+            const regularInputs = formElement.querySelectorAll('input:not(.custom-select-input), textarea');
+            regularInputs.forEach(input => {
+                input.addEventListener('blur', (e) => {
+                    const fieldName = e.target.name || e.target.id || 'unknown';
+                    const value = e.target.value?.trim() || '';
+
+                    if (value) {
+                        this.state.answers[fieldName] = value;
+                        // this._sendStepAnalytics(`delivery_${fieldName}`, value);
+
+                        // 👉 Відправляємо в Google Sheets ***
+                        this._sendDataToSheet({
+                            userID: this.userID,
+                            LastAction: this._formatKyivDate(),
+                            [`delivery_${fieldName}`]: value,
+                        }).catch(() => {
+                        });
+
+                        // Зберігаємо в localStorage для зручності ***
+                        if (fieldName === 'name') {
+                            localStorage.setItem('chatFormName', value);
+                        } else if (fieldName === 'phone') {
+                            localStorage.setItem('chatFormPhone', value);
+                        }
+                    }
+                });
+            });
+
+            // 👉 Для кастомних селектів - слухаємо зміни значення через input подію
+            const customSelectInputs = formElement.querySelectorAll('.custom-select-input');
+            customSelectInputs.forEach(input => {
+                // Відстежуємо зміни через input подію (коли значення змінюється програмно)
+                let lastValue = input.value;
+
+                const checkValueChange = () => {
+                    const currentValue = input.value || input.dataset.value || '';
+                    const fieldName = input.name || input.closest('.custom-select')?.classList[1]?.replace('form__select--', '') || 'unknown';
+
+                    if (currentValue && currentValue !== lastValue) {
+                        lastValue = currentValue;
+
+                        // Зберігаємо в state
+                        this.state.answers[fieldName] = currentValue;
+
+                        // Відправляємо в аналітику
+                        // this._sendStepAnalytics(`delivery_${fieldName}`, currentValue);
+                        // 👉 Відправляємо в Google Sheets
+                        this._sendDataToSheet({
+                            userID: this.userID,
+                            LastAction: this._formatKyivDate(),
+                            [`delivery_${fieldName}`]: currentValue,
+                        }).catch(() => {
+                        });
+                    }
+                };
+
+                // Перевіряємо зміни через input подію
+                input.addEventListener('input', checkValueChange);
+
+                // Також перевіряємо при blur
+                input.addEventListener('blur', checkValueChange);
+
+                // 👉 Додатково слухаємо кліки на елементи селекту
+                const selectWrapper = input.closest('.custom-select');
+                if (selectWrapper) {
+                    const selectList = selectWrapper.querySelector('.custom-select-list');
+                    if (selectList) {
+                        // Використовуємо делегування подій для елементів селекту
+                        selectList.addEventListener('click', (e) => {
+                            const item = e.target.closest('.custom-select-item');
+                            if (item) {
+                                // Невелика затримка, щоб значення встигло встановитися
+                                setTimeout(() => {
+                                    checkValueChange();
+                                }, 100);
+                            }
+                        });
+                    }
+                }
+            });
+
+            formElement.dataset.fieldTrackingAdded = 'true';
+        }
+
+        // Додаємо обробник submit тільки один раз
+        if (!formElement.dataset.chatSubmitHandler) {
+            formElement.addEventListener('submit', (e) => {
+                e.preventDefault();
+
+                // Збираємо дані форми (на випадок, якщо щось не відстежилось)
+                const formData = new FormData(formElement);
+                const data = Object.fromEntries(formData);
+
+                // Також збираємо дані з кастомних селектів
+                const customSelects = formElement.querySelectorAll('.custom-select-input');
+                customSelects.forEach(input => {
+                    const fieldName = input.name || input.closest('.custom-select')?.classList[1]?.replace('form__select--', '') || '';
+                    const value = input.dataset.value || input.value || '';
+                    if (value && fieldName) {
+                        data[fieldName] = value;
+                    }
+                });
+
+                // Зберігаємо дані в state (якщо ще не збережені)
+                Object.keys(data).forEach(key => {
+                    if (data[key] && !this.state.answers[key]) {
+                        this.state.answers[key] = data[key];
+                        this._sendStepAnalytics(`delivery_${key}`, data[key]);
+                    }
+                });
+
+                // 👉 Відправляємо is_ordered: true
+                this._sendDataToSheet({
+                    userID: this.userID,
+                    LastAction: this._formatKyivDate(),
+                    is_ordered: true,
+                }).catch(() => {});
+
+                // Плавно ховаємо форму перед переходом
+                form.style.opacity = '0';
+                form.style.transform = 'translateY(-10px)';
+
+                setTimeout(() => {
+                    form.classList.add('hidden');
+                    form.style.opacity = '';
+                    form.style.transform = '';
+
+                    // Переходимо на наступний крок (final)
+                    this.state.currentStepIndex += 1;
+                    this._saveState();
+                    this._runCurrentStep();
+                }, 300);
+            });
+
+            formElement.dataset.chatSubmitHandler = 'true';
+        }
+    }
+
+    async _sendDataToSheet(data) {
+        const url = 'https://api.apispreadsheets.com/data/7juvGn3tVOzKKT3N/';
+        const query = `select *
+                       from 7juvGn3tVOzKKT3N
+                       where userID = '${this.userID}'`;
+
+        // merge with locally stored analytics to avoid wiping columns
+        const saved = this.getSavedAnalytics() || {};
+        const {lastUpdated, lastUpdatedTimestamp, ...cleanSaved} = saved;
+        const mergedData = {
+            ...cleanSaved,
+            ...data,
+            LastAction: this._formatKyivDate(),
+        };
+
+        // keep local copy in sync
+        this._saveAnalyticsToLocalStorage(mergedData);
+
+        try {
+            let response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    accessKey: this.accessKey,
+                    secretKey: this.secretKey,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({data: mergedData, query}),
+            });
+
+            if (response.status !== 201) {
+                response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        accessKey: this.accessKey,
+                        secretKey: this.secretKey,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({data: mergedData}),
+                });
+            }
+        } catch (err) {
+            console.error('Error submitting to Apispreadsheets:', err);
+        }
+    }
+
+    /**
+     * Логіка: на кожному кроці шлемо одне поле:
+     * `${LP|Sub}_${step.id}`: value
+     */
+    _sendStepAnalytics(stepId, value) {
+        if (!stepId) return;
+        // const fieldName = `${this.chatPageKey}_${stepId}`; //для версії з subscribe123.html де є чат
+        const fieldName = `${stepId}`;
+
+        const data = {
+            userID: this.userID,
+            LastAction: this._formatKyivDate(),
+            [fieldName]: value,
+        };
+
+        // Зберігаємо в localStorage перед відправкою
+        this._saveAnalyticsToLocalStorage(data);
+
+        // fire-and-forget, щоб не блокувати UI
+        this._sendDataToSheet(data).catch(() => {
+        });
+    }
+
+    /**
+     * Зберігає аналітику в localStorage
+     * Структура: масив об'єктів з даними кожного кроку
+     */
+    _saveAnalyticsToLocalStorage(data) {
+        try {
+            const storageKey = `chatAnalytics_${this.userID}`;
+            const existing = localStorage.getItem(storageKey);
+            let analytics = existing ? JSON.parse(existing) : {};
+
+            // Оновлюємо/додаємо поля
+            Object.assign(analytics, {
+                ...data,
+                lastUpdated: this._formatLocalDate(),
+                lastUpdatedTimestamp: Date.now(),
+            });
+
+            // Зберігаємо назад
+            localStorage.setItem(storageKey, JSON.stringify(analytics));
+        } catch (err) {
+            console.error('[ChatBot] Error saving analytics to localStorage:', err);
+        }
+    }
+
+    /**
+     * Отримує збережену аналітику з localStorage
+     * @returns {Array|Object|null} Збережені дані або null
+     */
+    getSavedAnalytics() {
+        try {
+            const storageKey = `chatAnalytics_${this.userID}`;
+            const raw = localStorage.getItem(storageKey);
+            return raw ? JSON.parse(raw) : null;
+        } catch (err) {
+            console.error('[ChatBot] Error reading analytics from localStorage:', err);
+            return null;
+        }
+    }
+
+    /**
+     * Очищає збережену аналітику (корисно при завершенні чату)
+     */
+    clearSavedAnalytics() {
+        try {
+            const storageKey = `chatAnalytics_${this.userID}`;
+            localStorage.removeItem(storageKey);
+        } catch (err) {
+            console.error('[ChatBot] Error clearing analytics from localStorage:', err);
+        }
+    }
+
+    _handleInputAnswer(step, value) {
+        this._addMessage({from: 'user', text: value});
+
+        if (step.id) {
+            const prev = this.state.answers[step.id];
+            // Only send analytics if value changed (prevents duplicate from blur)
+            if (prev !== value) {
+                this.state.answers[step.id] = value;
+                this._sendStepAnalytics(step.id, value);
+
+                // 👉 Відправляємо важливі поля введення ***
+                const importantInputSteps = ['full_name', 'contact_phone', 'whatsapp_phone'];
+                if (importantInputSteps.includes(step.id)) {
+                    this._sendDataToSheet({
+                        userID: this.userID,
+                        LastAction: this._formatKyivDate(),
+                        [step.id]: value,
+                    }).catch(() => {
+                    });
+                }
+            } else {
+                // ensure state contains value even if identical
+                this.state.answers[step.id] = value;
+            }
+
+            // Persist common fields
+            if (step.id === 'full_name') {
+                localStorage.setItem('chatFormName', value);
+            } else if (step.id === 'contact_phone') {
+                localStorage.setItem('chatFormPhone', value);
+            }
+        }
+
+        this._saveState();
+
+        if (typeof this.config.onAnswer === 'function') {
+            this.config.onAnswer(step, value, {...this.state});
+        }
+
+        this.state.currentStepIndex += 1;
+        this._saveState();
+        this._removeInteractiveBlocks();
+        this._runCurrentStep();
+    }
+
+    _setPixelLeadImage() {
+        const params = UrlUtils.getAllSearchParams()
+        const id = params?.pixel
+
+        if (!id) {
+            console.warn('After sending contact data: Pixel ID not found in URL parameters');
+            return;
+        }
+
+        TrackingPixel.insertPixelImage(id, 'Lead')
+    }
+}
+
+/**
+ * Приклад сценарію (steps).
+ * Тут ви можете легко додавати / міняти кроки, тексти, логіку переходів.
+ */
+const basePath = window.cdn_path || '';
+const STARS_5 = `<span class="chat-review__stars">${Array(5).fill('<svg width="16" height="16" viewBox="0 0 24 24" fill="#f59e0b" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>').join('')}</span>`;
+
+const chatSteps = [
+    // +2
+    // КРОК 1 — Привітання + мотивація
+    {
+        id: 'intro',
+        messages: [
+            (state) => {
+
+                if (state.answers.clicked_start_chat) {
+                    return '👋 ¡Hola! Bienvenido a <b>Nopalis</b>.\n' +
+                        'Te ayudaré a elegir el curso ideal para una <b>pérdida de peso cómoda y segura</b>, además de aprovechar <b>descuentos adicionales</b>.\n\n' +
+                        'Al realizar tu pedido aquí, en el chat, <b>no tendrás que esperar la llamada de un operador</b>: todo se hace de forma rápida y cómoda.\n\n' +
+                        'Para que pueda elegir el curso perfecto para ti y fijar el descuento, por favor, <b>déjame tus datos de contacto</b>.';
+                }
+                return '👋 ¡Hola! Gracias por tu pedido de Nopalis.\n\n' +
+                    'Ya tienes un <b>35% de descuento</b>.\n' +
+                    'Al hacer tu pedido aquí, en el chat, <b>¡recibirás descuentos adicionales en el producto seleccionado</b>! Y <b>no tendrás que esperar la llamada de un operador</b>.\n\n' +
+                    '¿Quieres completar tu <b>pedido rápidamente y aprovechar el descuento adicional</b>?';
+            }
+        ],
+        options: (state) => {
+            if (state.answers.clicked_start_chat) {
+                return []; // Не показувати кнопки, якщо чат почато через кнопку
+            }
+            return [
+                {label: 'Sí, quiero', value: 'yes'},
+                {label: 'No', value: 'back'},
+            ];
+        },
+        nextStep: ({option, state, bot}) => {
+            // якщо користувач хоче "назад" — збережемо в відповіді
+            if (option.value === 'back') {
+                state.answers.exitReason = 'user_back';
+                // логіка повернення – в onAnswer (redirect/history.back)
+            }
+            // завжди переходимо до наступного кроку
+            return bot._getStepIndex('main_form_name');
+        },
+    },
+    {
+        id: 'main_form_name',
+        messages: ['Por favor indica tu nombre y apellido.'],
+        expectFreeInput: true,
+        inputPlaceholder: 'Nombre y apellido',
+        shouldSkip: ({state}) => {
+            // Показуємо тільки якщо натиснули кнопку старту чату
+            return !state.answers.clicked_start_chat;
+        },
+    },
+    {
+        id: 'main_form_phone',
+        messages: ['Proporciona tu número de teléfono de contacto.'],
+        expectFreeInput: true,
+        inputPlaceholder: 'Número de teléfono de contacto',
+        shouldSkip: ({state}) => {
+            // Показуємо тільки якщо натиснули кнопку старту чату
+            return !state.answers.clicked_start_chat;
+        },
+        nextStep: ({option, state}) => {
+            if (state.answers.main_form_name && state.answers.main_form_phone) {
+                TrackingManager.init()
+            }
+        }
+    },
+    {
+        id: 'intro_after_data',
+        messages: ['Hemos registrado tus datos, continuemos con el descuento 👇'],
+        options: [
+            {label: 'Sí, quiero', value: 'yes'},
+            {label: 'No', value: 'back'},
+        ],
+        nextStep: ({option, state, bot}) => {
+            // якщо користувач хоче "назад" — збережемо в відповіді
+            if (option.value === 'back') {
+                state.answers.exitReason = 'user_back';
+                // логіка повернення – в onAnswer (redirect/history.back)
+            }
+            return bot._getStepIndex('goal');
+        },
+        shouldSkip: ({state}) => {
+            // Показуємо тільки якщо натиснули кнопку старту чату
+            return !state.answers.clicked_start_chat;
+        },
+        onEnter: (bot) => {
+            bot._setPixelLeadImage()
+        }
+    },
+    {
+        id: 'goal',
+        messages: ['¿Qué cambio quieres lograr?'],
+        options: [
+            {label: 'Adelgazar 5–7 kg', value: '5_7', name: '5-7 kg'},
+            {label: 'Adelgazar 8–12 kg', value: '8_12', name: '8-12 kg'},
+            {label: 'Más de 12 kg / quitar barriga', value: '12_plus', name: '12+ kg'},
+        ],
+    },
+    {
+        id: 'effect',
+        messages: [
+            'Nopalis está diseñado para <b>una pérdida de peso gradual y segura</b>.\nEl resultado no se observa <b>de inmediato<b>, sino gradualmente. Así es como sucede:',
+            '<b>✔ Después de 5–7 días de uso</b>\nLa digestión se normaliza, la hinchazón y la pesadez en el abdomen disminuyen.\nEl cuerpo comienza a limpiarse y prepararse para la pérdida de peso.',
+            '<b>✔ Después de 10 a 14 días</b>\nEl apetito y los antojos de dulces disminuyen.\nResulta más fácil controlar las porciones y evitar comer en exceso.',
+            '<b>✔ Después de 3-4 semanas</b>\nEl cuerpo comienza a utilizar más activamente las reservas de grasa como fuente de energía.\nAparecen los primeros cambios notables en el peso y el volumen.',
+            '<b>✔ Después de 1–2 meses de uso regular</b>\nEl peso disminuye de manera constante, el resultado es fijo.\nEl cuerpo se adapta al nuevo régimen sin estrés.',
+        ],
+        options: [
+            {label: 'Mirar las reseñas de los clientes', value: 'show_comments'},
+            {label: 'Pasar a elegir el curso', value: 'course_selection'},
+        ],
+        onEnter: (bot, state) => {
+            // onEnter migration from id: 'goal_reco'
+            const goal = state.answers.goal;
+            let recommendedPacks = 3;
+
+            if (goal === '5_7') {
+                recommendedPacks = 3;
+            } else if (goal === '8_12') {
+                recommendedPacks = 5;
+            } else {
+                recommendedPacks = 6;
+            }
+
+            // 👉 Зберігаємо в state
+            state.answers.recommended_packs = recommendedPacks;
+
+            // 👉 Відправляємо одним запитом разом з goal (якщо він є)
+            const data = {
+                userID: bot.userID,
+                LastAction: bot._formatKyivDate(),
+                recommended_packs: recommendedPacks,
+            };
+
+            bot._sendDataToSheet(data).catch(() => {});
+        },
+        nextStep: ({option, state, bot}) => {
+            if (option.value === 'show_comments') {
+                return bot._getStepIndex('comments_1');
+            }
+            return bot._getStepIndex('course_choice');
+        }
+    },
+    {
+        id: 'comments_1',
+        messages: [
+            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-1.jpg" alt="" class="chat-review__avatar"><b>María, 44 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Para ser sincera, al principio tenía mis dudas. Pedí cuatro frascos a la vez y me alegro de haberlo hecho. Después del primer mes, ya veía resultados; empecé a bajar de peso poco a poco.</p></div>` +
+            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-2.jpg" alt="" class="chat-review__avatar"><b>Carmen, 52 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Muchas gracias por todo. No podía encontrar nada durante mucho tiempo, pero ahora realmente noté la diferencia después de solo unas semanas.</p></div>` +
+            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-3.jpg" alt="" class="chat-review__avatar"><b>Lucía, 39 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Al principio pedí dos frascos, pero luego me di cuenta de que necesitaba seguir usándolos. Después de un mes, empecé a notar que la ropa me quedaba más holgada.</p></div>`,
+        ],
+        options: [
+            { label: 'Más comentarios', value: 'more_comments' },
+            { label: 'Pasar a elegir el curso', value: 'course_selection' },
+        ],
+        nextStep: ({ option, state, bot }) => {
+            if (option.value === 'more_comments') {
+                return bot._getStepIndex('comments_2');
+            }
+            return bot._getStepIndex('course_choice');
+        },
+    },
+    {
+        id: 'comments_2',
+        messages: [
+            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-4.jpg" alt="" class="chat-review__avatar"><b>Ana, 47 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">No creí al principio que me ayudaría, pero decidí probarlo. Ya estoy terminando mi segundo frasco y estoy pensando en pedir más.</p></div>` +
+            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-5.jpg" alt="" class="chat-review__avatar"><b>Rosa, 55 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Gracias. Bajar de peso después de los 50 es muy difícil, pero con este producto, es un poco más fácil de controlar.</p></div>` +
+            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-6.jpg" alt="" class="chat-review__avatar"><b>José, 41 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Al principio pedí dos frascos para probar. Después entendí que mejor tomar un curso. Ahora ya es tercer bote y hay resultado.</p></div>`,
+        ],
+        options: [
+            { label: 'Más comentarios', value: 'more_comments' },
+            { label: 'Pasar a elegir el curso', value: 'course_selection' },
+        ],
+        nextStep: ({ option, state, bot }) => {
+            if (option.value === 'more_comments') {
+                return bot._getStepIndex('comments_3');
+            }
+            return bot._getStepIndex('course_choice');
+        },
+    },
+    {
+        id: 'comments_3',
+        messages: [
+            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-7.jpg" alt="" class="chat-review__avatar"><b>Teresa, 49 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Me alegro mucho de haber pedido cuatro frascos a la vez. Solo empiezas a ver cambios después del primero, y luego los resultados se hacen más notorios.</p></div>` +
+            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-8.jpg" alt="" class="chat-review__avatar"><b>Patricia, 37 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Gracias por el producto. Mi pérdida de peso no es drástica, sino gradual y constante, y me gusta.</p></div>` +
+            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-9.jpg" alt="" class="chat-review__avatar"><b>Elena, 60 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Estaba leyendo las reseñas durante mucho tiempo antes de comprar. Ahora yo entiendo que ha valido la pena pedirlo, me siento mucho mejor.</p></div>`,
+        ],
+        options: [
+            { label: 'Más comentarios', value: 'more_comments' },
+            { label: 'Pasar a elegir el curso', value: 'course_selection' },
+        ],
+        nextStep: ({ option, state, bot }) => {
+            if (option.value === 'more_comments') {
+                return bot._getStepIndex('comments_4');
+            }
+            return bot._getStepIndex('course_choice');
+        },
+    },
+    {
+        id: 'comments_4',
+        messages: [
+            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-10.jpg" alt="" class="chat-review__avatar"><b>Miguel, 53 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Lo compré para probarlo. Después de unas semanas, noté cambios, así que pedí más frascos para continuar.</p></div>` +
+            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-11.jpg" alt="" class="chat-review__avatar"><b>Guadalupe, 45 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Estoy muy agradecida. Noté que empecé a bajar de peso después del primer mes. Menos mal que compré varios botes enseguida.</p></div>` +
+            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-12.jpg" alt="" class="chat-review__avatar"><b>Sofía, 38 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Pensaba comprar un frasco, pero pedí tres. Ahora entiendo que hice lo correcto, porque los resultados no aparecieron de inmediato.</p></div>`,
+        ],
+        options: [
+            { label: 'Más comentarios', value: 'more_comments' },
+            { label: 'Pasar a elegir el curso', value: 'course_selection' },
+        ],
+        nextStep: ({ option, state, bot }) => {
+            if (option.value === 'more_comments') {
+                return bot._getStepIndex('comments_5');
+            }
+            return bot._getStepIndex('course_choice');
+        },
+    },
+    {
+        id: 'comments_5',
+        messages: [
+            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-13.jpg" alt="" class="chat-review__avatar"><b>Raúla, 58 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Gracias por este producto. Los resultados son excelentes para mi edad y me siento mucho mejor.</p></div>` +
+            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-14.jpg" alt="" class="chat-review__avatar"><b>Daniel, 46 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Leía las reseñas y decidí probarlo. Ya noté cambios después de la primera lata y sigo con el tratamiento.</p></div>` +
+            `<div class="chat-review"><div class="chat-review__header"><img src="${basePath}images/comm-ava-15.jpg" alt="" class="chat-review__avatar"><b>Alejandro, 62 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Al principio dudaba en comprarlo. Pero vi resultados, así que pedí más para consolidar el efecto.</p></div>`,
+        ],
+        options: [
+            { label: 'Pasar a elegir el curso', value: 'course_selection' },
+        ],
+        nextStep: ({ option, state, bot }) => {
+            return bot._getStepIndex('course_choice');
+        },
+    },
+    {
+        id: 'course_choice',
+        messages: [
+            (state) => {
+                const packs = state.answers.recommended_packs;
+
+                const courseInitiation = '<div class="course">' +
+                    '<b class="course-title">Curso de iniciación (2&nbsp;paquetes)' +
+                    '<span class="inline-products">' +
+                    '<span class="inline-product-item"></span>' +
+                    '<span class="inline-product-item"></span>' +
+                    '</span>' +
+                    '</b>' +
+                    '<p class="course-text">• Iniciar la operación de limpieza y digestión.\n• Reducción de la hinchazón y pesadez.\n• Adaptación corporal\n</p>' +
+                    '<span class="course-separator"></span>' +
+                    '<p class="course-text"><b>Los cambios de peso visibles suelen ser mínimos</b></p>' +
+                    '</div>';
+
+                const courseMinimum = '<div class="course">' +
+                    '<b class="course-title">Curso mínimo efectivo (3&nbsp;paquetes)' +
+                    '<span class="inline-products">' +
+                    '<span class="inline-product-item"></span>' +
+                    '<span class="inline-product-item"></span>' +
+                    '<span class="inline-product-item"></span>' +
+                    '</span>' +
+                    '</b>' +
+                    '<p class="course-text">• Una duración de más de 3 a 4&nbsp;semanas es el período óptimo para reducir las células grasas.\n• Lanzamiento de una quema de grasa estable\n• Primeros cambios notables en peso y volumen</p>' +
+                    '<span class="course-separator"></span>' +
+                    '<p class="course-text">✅&nbsp;<b>Inicio recomendado para obtener resultados reales</b></p>' +
+                    '</div>';
+
+                const courseComplete = '<div class="course">' +
+                    '<b class="course-title">Curso completo (5&nbsp;paquetes)' +
+                    '<span class="inline-products">' +
+                    '<span class="inline-product-item"></span>' +
+                    '<span class="inline-product-item"></span>' +
+                    '<span class="inline-product-item"></span>' +
+                    '<span class="inline-product-item"></span>' +
+                    '<span class="inline-product-item"></span>' +
+                    '</span>' +
+                    '</b>' +
+                    '<p class="course-text">• Ciclo completo de pérdida de peso\n• Quema de grasa activa y estable\n• Pérdida de peso sin fluctuaciones repentinas\n• Consolidación del resultado</p>' +
+                    '<span class="course-separator"></span>' +
+                    '<p class="course-text">💚&nbsp;<b>La opción más popular entre los clientes</b></p>' +
+                    '</div>';
+
+                const courseMaximum = '<div class="course">' +
+                    '<b class="course-title">Curso máximo (6&nbsp;paquetes)' +
+                    '<span class="inline-products">' +
+                    '<span class="inline-product-item"></span>' +
+                    '<span class="inline-product-item"></span>' +
+                    '<span class="inline-product-item"></span>' +
+                    '<span class="inline-product-item"></span>' +
+                    '<span class="inline-product-item"></span>' +
+                    '<span class="inline-product-item"></span>' +
+                    '</span>' +
+                    '</b>' +
+                    '<p class="course-text">• Máxima quema de grasa\n• Notable reducción de peso y volumen\n• Limpieza profunda del organismo\n• El resultado más estable y duradero.</p>' +
+                    '<span class="course-separator"></span>' +
+                    '<p class="course-text">🔥&nbsp;<b>Para quienes desean el máximo efecto y una transformación completa</b></p>' +
+                    '</div>';
+
+                const allCourses = [
+                    { packs: 2, html: courseInitiation },
+                    { packs: 3, html: courseMinimum },
+                    { packs: 5, html: courseComplete },
+                    { packs: 6, html: courseMaximum }
+                ];
+
+                const sortedCourses = allCourses.sort((a, b) => {
+                    if (a.packs === packs) return -1;
+                    if (b.packs === packs) return 1;
+                    return a.packs - b.packs;
+                });
+
+                const coursesHTML = sortedCourses.map((course, index) => {
+                    if (index === 0) {
+                        return course.html.replace('<div class="course">', '<div class="course active">');
+                    }
+                    return course.html;
+                }).join('');
+
+                return 'Cada opción posterior <b>refuerza el efecto de la anterior</b>.' + coursesHTML
+            },
+        ],
+        options: [
+            {label: '6 paquetes', value: 6},
+            {label: '5 paquetes', value: 5},
+            {label: '3 paquetes', value: 3},
+            {label: '2 paquetes', value: 2, color: '#9ca3af'},
+        ],
+        nextStep: ({option, state, bot}) => {
+            state.answers.course_packs = option.value;
+            if (option.value === 2) {
+                return bot._getStepIndex('two_packs_price');
+            }
+            return bot._getStepIndex('price_calculation');
+        },
+    },
+    {
+        id: 'price_calculation',
+        messages: [
+            state => {
+                const packs = state.answers.course_packs;
+                let courseName = 'Mínimo efectivo';
+
+                if (packs === 5) {
+                    courseName = 'Completo';
+                } else if (packs === 6) {
+                    courseName = 'Máximo';
+                }
+
+                return `Gracias&nbsp;💚 Has elegido un curso «${courseName}» — ${packs} paquetes Nopalis.\nActualmente hay una oferta especial en este curso, que proporciona un beneficio mucho mayor que el descuento estándar para 1 paquete.`;
+            },
+            state => {
+                const packs = state.answers.course_packs;
+                const threePacks = `
+                    <div class="pricing-card">
+                        <div class="header">
+                            <span class="star">⭐</span>
+                            <h2>3&nbsp;paquetes:<br> Curso mínimo efectivo</h2>
+                        </div>
+                        <div class="calculation-header">
+                            <h3>Cálculo:</h3>
+                        </div>
+                        <div class="pricing-row">
+                            <span class="package">1&nbsp;paq.</span>
+                            <span class="old-price">1180</span>
+                            <span class="arrow blue">➜</span>
+                            <span class="new-price sale blue">590&nbsp;MXN</span>
+                        </div>
+                        <div class="pricing-row">
+                            <span class="package">2&nbsp;paq.</span>
+                            <span class="old-price">1180</span>
+                            <span class="arrow blue">➜</span>
+                            <span class="new-price sale blue">590&nbsp;MXN</span>
+                        </div>
+                        <div class="pricing-row">
+                            <span class="package">3&nbsp;paq.</span>
+                            <span class="old-price">1180</span>
+                            <span class="arrow green">➜</span>
+                            <span class="new-price green">300&nbsp;MXN</span>
+                        </div>
+                        <div class="savings-section">
+                            <span class="savings-text">Ahorro: <span class=""><span class="">3540</span> - 1480 =</span> <span class="">2060&nbsp;MXN</span></span>
+                        </div>
+                        <div class="total-section">
+                            <span class="total-label green-text">EN TOTAL:</span>
+                            <span class="total-price green-text">1480&nbsp;MXN</span>
+                        </div>
+                        <div class="delivery-section">
+                            <span class="savings-text">¡Envío gratis!</span>
+                        </div>
+                        <div class="promo-banner">
+                            <span class="promo-text">Obtendrás el curso mínimo completo para obtener resultados notables.</span>
+                        </div>
+                    </div>
+                `
+                const fivePacks = `
+                    <div class="pricing-card">
+                        <div class="header">
+                            <span class="star">⭐</span>
+                            <h2>5&nbsp;paquetes:<br> Curso completo</h2>
+                        </div>
+                        <div class="calculation-header">
+                            <h3>Cálculo:</h3>
+                        </div>
+                        <div class="pricing-row">
+                            <span class="package">1&nbsp;paq.</span>
+                            <span class="old-price">1180</span>
+                            <span class="arrow blue">➜</span>
+                            <span class="new-price sale blue">590&nbsp;MXN</span>
+                        </div>
+                        <div class="pricing-row">
+                            <span class="package">2&nbsp;paq.</span>
+                            <span class="old-price">1180</span>
+                            <span class="arrow blue">➜</span>
+                            <span class="new-price sale blue">590&nbsp;MXN</span>
+                        </div>
+                        <div class="pricing-row">
+                            <span class="package">3&nbsp;paq.</span>
+                            <span class="old-price">1180</span>
+                            <span class="arrow green">➜</span>
+                            <span class="new-price green">300&nbsp;MXN</span>
+                        </div>
+                        <div class="pricing-row">
+                            <span class="package">4&nbsp;paq.</span>
+                            <span class="old-price">1180</span>
+                            <span class="arrow green">➜</span>
+                            <span class="new-price green">200&nbsp;MXN</span>
+                        </div>
+                        <div class="pricing-row">
+                            <span class="package">5&nbsp;paq.</span>
+                            <span class="old-price">1180</span>
+                            <span class="arrow green">➜</span>
+                            <span class="new-price green">200&nbsp;MXN</span>
+                        </div>
+                        <div class="savings-section">
+                            <span class="savings-text">Ahorro: <span class=""><span class="">5900</span> - 1880 =</span> <span class="">4020&nbsp;MXN</span></span>
+                        </div>
+                        <div class="total-section">
+                            <span class="total-label green-text">EN TOTAL:</span>
+                            <span class="total-price green-text">1880&nbsp;MXN</span>
+                        </div>
+                        <div class="delivery-section">
+                            <span class="savings-text">¡Envío gratis!</span>
+                        </div>
+                        <div class="promo-banner">
+                            <span class="promo-text">De hecho: pagas por 2&nbsp;paquetes al precio estándar, ¡pero obtienes <strong class="yellow-text">5&nbsp;paquetes</strong>!</span>
+                        </div>
+                    </div>
+                `
+                const sixPacks = `
+                    <div class="pricing-card">
+                        <div class="header">
+                            <span class="star">⭐</span>
+                            <h2>6&nbsp;paquetes:<br> Curso máximo</h2>
+                        </div>
+                        <div class="calculation-header">
+                            <h3>Cálculo:</h3>
+                        </div>
+                        <div class="pricing-row">
+                            <span class="package">1&nbsp;paq.</span>
+                            <span class="old-price">1180</span>
+                            <span class="arrow blue">➜</span>
+                            <span class="new-price sale blue">590&nbsp;MXN</span>
+                        </div>
+                        <div class="pricing-row">
+                            <span class="package">2&nbsp;paq.</span>
+                            <span class="old-price">1180</span>
+                            <span class="arrow blue">➜</span>
+                            <span class="new-price sale blue">590&nbsp;MXN</span>
+                        </div>
+                        <div class="pricing-row">
+                            <span class="package">3&nbsp;paq.</span>
+                            <span class="old-price">1180</span>
+                            <span class="arrow blue">➜</span>
+                            <span class="new-price sale blue">590&nbsp;MXN</span>
+                        </div>
+                        <div class="pricing-row">
+                            <span class="package">4&nbsp;paq.</span>
+                            <span class="old-price">1180</span>
+                            <span class="arrow green">➜</span>
+                            <span class="new-price green">300&nbsp;MXN</span>
+                        </div>
+                        <div class="pricing-row">
+                            <span class="package">5&nbsp;paq.</span>
+                            <span class="old-price">1180</span>
+                            <span class="arrow green">➜</span>
+                            <span class="new-price green">200&nbsp;MXN</span>
+                        </div>
+                        <div class="pricing-row">
+                            <span class="package">6&nbsp;paq.</span>
+                            <span class="old-price">1180</span>
+                            <span class="arrow green">➜</span>
+                            <span class="new-price green">80&nbsp;MXN</span>
+                        </div>
+                        <div class="savings-section">
+                            <span class="savings-text">Ahorro: <span class=""><span class="">7080</span> - 2450 =</span> <span class="">4630&nbsp;MXN</span></span>
+                        </div>
+                        <div class="total-section">
+                            <span class="total-label green-text">EN TOTAL:</span>
+                            <span class="total-price green-text">2450&nbsp;MXN</span>
+                        </div>
+                        <div class="delivery-section">
+                            <span class="savings-text">¡Envío gratis!</span>
+                        </div>
+                        <div class="promo-banner">
+                            <span class="promo-text">De hecho, este es el precio por solo 2&nbsp;paquetes al precio estándar y solo +90&nbsp;MXN adicionales, ¡y recibirás <strong class="yellow-text">6&nbsp;paquetes</strong>!</span>
+                        </div>
+                    </div>
+                `
+
+                if (packs === 3) {
+                    return threePacks.trim().replace(/\s+/g, ' ');
+                } else if (packs === 5) {
+                    return fivePacks.trim().replace(/\s+/g, ' ');
+                } else if (packs === 6) {
+                    return sixPacks.trim().replace(/\s+/g, ' ');
+                }
+                return '';
+            },
+        ],
+        options: [
+            {label: 'Confirmar el pedido', value: 'confirm', color: 'green'},
+            {label: 'No estoy seguro(a)', value: 'not_sure'},
+            {label: 'Volver', value: 'back'},
+        ],
+        shouldSkip: ({state}) => state.answers.course_packs === 2,
+        nextStep: ({option, state, bot}) => {
+            if (option.value === 'back') {
+                state.answers.returnedToCourseChoice = true;
+                return bot._getStepIndex('course_choice')
+
+            }
+            if (option.value === 'not_sure') {
+                state.answers.returnedToCourseChoice = true;
+
+                // return 6;
+                return bot._getStepIndex('course_choice')
+            }
+
+            return bot._getStepIndex('course_confirm');
+        },
+    },
+    {
+        id: 'two_packs_price',
+        messages: [
+            '¡Gracias! Has elegido el "Curso Inicial": 2&nbsp;paquetes de Nopales.',
+            'Después de los 55&nbsp;años, el metabolismo cambia. Dos paquetes solo pueden iniciar los procesos internos del cuerpo. Por lo general, el peso aún no empieza a bajar de forma notable, ya que Nopalis actúa de forma gradual y segura.',
+            'Hay una muy buena oferta ahora para la <b>tarifa mínima efectiva - 3&nbsp;paquetes</b>' +
+            '\n<b>El tercer paquete cuesta solo 300&nbsp;MXN.</b>',
+            '2 paquetes:\n' +
+            '590&nbsp;MXN (−50% de descuento 1180)\n' +
+            '590&nbsp;MXN (−50% de descuento 1180)\n' +
+            '+ Envío 200&nbsp;MXN.\n' +
+            'Total: 1380&nbsp;MXN',
+            `
+              <div class="pricing-card">
+                <div class="header">
+                    <span class="star">⭐</span>
+                    <h2>3&nbsp;paquetes:<br> Curso mínimo efectivo</h2>
+                </div>
+                <div class="calculation-header">
+                    <h3>Cálculo:</h3>
+                </div>
+                <div class="pricing-row">
+                    <span class="package">1&nbsp;paq.</span>
+                    <span class="old-price">1180</span>
+                    <span class="arrow blue">➜</span>
+                    <span class="new-price sale blue">590&nbsp;MXN</span>
+                </div>
+                <div class="pricing-row">
+                    <span class="package">2&nbsp;paq.</span>
+                    <span class="old-price">1180</span>
+                    <span class="arrow blue">➜</span>
+                    <span class="new-price sale blue">590&nbsp;MXN</span>
+                </div>
+                <div class="pricing-row">
+                    <span class="package">3&nbsp;paq.</span>
+                    <span class="old-price">1180</span>
+                    <span class="arrow green">➜</span>
+                    <span class="new-price green">300&nbsp;MXN</span>
+                </div>
+                <div class="savings-section">
+                    <span class="savings-text">Ahorro: <span class=""><span class="">3540</span> - 1480 =</span> <span class="">2060&nbsp;MXN</span></span>
+                </div>
+                <div class="total-section">
+                    <span class="total-label green-text">EN TOTAL:</span>
+                    <span class="total-price green-text">1480&nbsp;MXN</span>
+                </div>
+                <div class="delivery-section">
+                    <span class="savings-text">¡Envío gratis!</span>
+                </div>
+                <div class="promo-banner">
+                    <span class="promo-text">¡La diferencia es de solo <strong class="yellow-text">+100&nbsp;MXN</strong>! Pero obtienes la tarifa mínima completa para un resultado notable.</span>
+                </div>
+            </div>
+            `.trim().replace(/\s+/g, ' '),
+        ],
+        options: [
+            {label: 'Pedir 3 paquetes', value: 3, color: 'green'},
+            {label: 'Pedir 2 paquetes', value: 2},
+        ],
+        shouldSkip: ({state}) => state.answers.course_packs !== 2,
+        nextStep: ({option, state, bot}) => {
+            state.answers.course_packs = option.value;
+            return bot._getStepIndex('course_confirm');
+        },
+    },
+    {
+        id: 'course_confirm',
+        messages: [
+            state => {
+                const packs = state.answers.course_packs || 3;
+                const priceMap = {
+                    2: 1380,
+                    3: 1480,
+                    5: 1880,
+                    6: 2450,
+                };
+                const price = priceMap[packs];
+                return `¡Gracias por tu pedido! Tu elección: <b>${packs} paquetes Nopalis</b>. Precio: <b>${price}&nbsp;MXN</b>\nAhora vamos a organizar la entrega.`;
+            },
+        ],
+        onEnter: (bot, state) => {
+            const packs = parseInt(state.answers.course_packs) || 3;
+            bot._showProductAnimation(packs);
+
+            // 👉 Відправляємо course_choice в таблицю
+            const data = {
+                userID: bot.userID,
+                LastAction: bot._formatKyivDate(),
+                course_choice: packs,
+            };
+
+            bot._sendDataToSheet(data).catch(() => {
+            });
+        },
+    },
+    {
+        id: 'full_name',
+        messages: ['Por favor indica tu nombre y el nombre de la persona que recibirá el paquete.'],
+        expectFreeInput: true,
+        inputPlaceholder: 'Nombre y apellido',
+    },
+
+    {
+        id: 'contact_phone',
+        messages: ['Proporciona tu número de teléfono de contacto.'],
+        expectFreeInput: true,
+        inputPlaceholder: 'Número de teléfono de contacto',
+    },
+    {
+        id: 'delivery_phone_type',
+        messages: ['Confirma tu número de teléfono para la entrega:'],
+        options: [
+            {label: 'Especificado previamente al realizar el pedido', value: 'from_form', name: 'From form'},
+            {label: 'Número de WhatsApp', value: 'whatsapp', name: 'WhatsApp'},
+        ],
+    },
+    {
+        id: 'whatsapp_phone',
+        messages: ['Introduce tu número de teléfono para WhatsApp:'],
+        expectFreeInput: true,
+        inputPlaceholder: 'Número de teléfono para WhatsApp',
+        shouldSkip: ({state}) => {
+            // Пропускаємо цей крок, якщо обрано "Вказаний раніше"
+            return state.answers.delivery_phone_type !== 'whatsapp';
+        },
+    },
+    {
+        id: 'delivery_form',
+        messages: [
+            'A continuación aparecerá un formulario para completar los detalles de entrega.',
+            'Por favor, rellena todos los campos del formulario.',
+        ],
+        showForm: true, // 👉 прапорець для показу форми
+    },
+    {
+        id: 'final',
+        messages: [
+            '🎉 ¡Gracias! El pedido ha sido aceptado y enviado para su procesamiento.\nEspera un mensaje del servicio de mensajería por <b>WhatsApp o SMS<b> con los detalles de la entrega.'
+        ],
+    },
+];
+
+/**
+ * Карта тригерів → значень прогресу.
+ * Ключ: `${stepId}` або `${stepId}:${optionValue}` для конкретної кнопки.
+ * Значення: відсоток прогресу після цього вибору.
+ */
+const PROGRESS_MAP = [
+    { key: 'intro:yes',              value: 14  },
+    { key: 'intro_after_data:yes',   value: 14  },
+    { key: 'goal',                   value: 28  },
+    { key: 'course_choice',          value: 42  },
+    { key: 'price_calculation:confirm', value: 57 },
+    { key: 'two_packs_price',        value: 57  },
+    { key: 'full_name',              value: 71  },
+    { key: 'contact_phone',          value: 85  },
+    { key: 'delivery_form_submit',   value: 100 },
+];
+
+// Ініціалізація чатбота після завантаження DOM
+document.addEventListener('DOMContentLoaded', () => {
+    // --- Progress Bar ---
+    const chatProgress = new ChatBotProgress({
+        barSelector:   '#chatProgressBar',
+        fillSelector:  '#chatProgressFill',
+        labelSelector: '#chatProgressLabel',
+        currentStepSelector: '#chatProgressCurrStep',
+        totalStepsSelector: '#chatProgressTotalSteps'
+    });
+
+    // --- ChatBot ---
+    const bot = new ChatBot({
+        messagesContainer: '#chatMessages',
+        root: '.chat-bot',
+        steps: chatSteps,
+        typingDelay: 2000,
+        // storageKey: 'flexible_chat_bot_state', // прибрали, щоб не зберігати історію
+        onAnswer: (step, answer, state) => {
+            // місце для аналітики / API
+            // Формуємо ключ пошуку: спочатку точний "stepId:value", потім загальний "stepId"
+            const specificKey = `${step.id}:${answer?.value ?? answer}`;
+            const generalKey  = `${step.id}`;
+
+            let progressValue = null;
+
+            const specificMatch = PROGRESS_MAP.find(item => item.key === specificKey);
+            const generalMatch  = PROGRESS_MAP.find(item => item.key === generalKey);
+
+            const currentMatch = generalMatch || specificMatch;
+            const progressByPercents = Object.groupBy(PROGRESS_MAP, ({value}) => value)
+            const currentStepIndex = currentMatch ? Object.keys(progressByPercents).indexOf(String(currentMatch['value'])) : null
+
+            if (currentStepIndex !== null) {
+                chatProgress.setSteps(currentStepIndex + 1);
+            }
+
+            if (specificMatch !== undefined) {
+                progressValue = specificMatch.value;
+            } else if (generalMatch !== undefined) {
+                progressValue = generalMatch.value;
+            }
+
+            if (progressValue !== null && progressValue > chatProgress.current) {
+                chatProgress.setProgress(progressValue);
+            }
+        },
+        onFinish: state => {
+            // При завершенні — 100%
+            chatProgress.setProgress(100);
+            chatProgress.setSteps(chatProgress.getTotalStepsValue(PROGRESS_MAP))
+
+            const chatRoot = document.querySelector('.chat-bot');
+            if (!chatRoot) return;
+
+            // дати користувачу 5 секунд дочитати фінальне повідомлення
+            setTimeout(() => {
+                // якщо вже закритий — нічого не робимо
+                if (!chatRoot || chatRoot.classList.contains('hidden')) return;
+
+                if (window.location.pathname.includes('subscribe')) {
+                    // ми вже на сторінці оформлення → просто закриваємо чат
+                    chatRoot.classList.add('hidden');
+                    document.body.style.overflow = 'auto';
+                } else {
+                    // на LP → після паузи редіректимо на subscribe
+                    // window.location.href = 'subscribe123.html';
+                    window.location.href = 'subscribe123.html?pixel=' + UrlUtils.getAllSearchParams()?.pixel;
+                }
+            }, 5000);
+        },
+    });
+
+    // 👉 Зберігаємо екземпляр бота глобально
+    window.chatBotInstance = bot;
+    window.chatProgressInstance = chatProgress; // для доступу ззовні
+
+    // bot.start();
+    bot.initInfoPanel();
+    bot.initClose();
+    bot.initModal();
+
+    // 👉 Ініціалізуємо відстеження .main__form
+    initMainFormTracking(bot);
+
+    // --- Тригер 100% при submit форми доставки ---
+    // Перехоплюємо submit форми .offer__form через делегування
+    document.addEventListener('submit', e => {
+        const offerForm = e.target.closest('.offer__form');
+        if (offerForm) {
+            chatProgress.setProgress(100);
+            chatProgress.setSteps(chatProgress.getTotalStepsValue(PROGRESS_MAP))
+        }
+    });
+});
+
+function getUniqProgressSteps(steps) {
+    return steps.filter((item, index, arr) => {
+        return arr.findIndex(i => i.value === item.value) === index
+    })
+}
+
+function normalizeTime(timeValue) {
+    const [time, period] = timeValue.split(' ');
+
+    let hours = parseInt(time.split(':')[0]);
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+
+    return `${String(hours).padStart(2, '0')}:00`;
+}
+
+function handleFormSubmit(form) {
+    const inputs = form.querySelectorAll('input, textarea, select');
+    let allFilled = true;
+
+    inputs.forEach(input => {
+        const value = input.value.trim();
+
+        // Проверка на пустое значение
+        if (!value) {
+            allFilled = false;
+            input.classList.add('error');
+            return;
+        }
+
+        // Дополнительная проверка для телефона
+        if (input.name === 'phone' && value.length < 8) {
+            allFilled = false;
+            input.classList.add('error');
+        }
+    });
+
+    if (allFilled) {
+        chatBot.classList.remove('hidden');
+    }
+
+    return allFilled;
+}
+
+// Зберігаємо дані форми в localStorage для автозаповнення в чаті
+function saveFormDataToStorage() {
+    const mainForm = document.querySelector('.main__form');
+    if (!mainForm) return;
+
+    const nameInput = mainForm.querySelector('input[name="name"]');
+    const phoneInput = mainForm.querySelector('input[name="phone"]');
+
+    if (nameInput && nameInput.value.trim()) {
+        localStorage.setItem('chatFormName', nameInput.value.trim());
+    }
+    if (phoneInput && phoneInput.value.trim()) {
+        localStorage.setItem('chatFormPhone', phoneInput.value.trim());
+    }
+}
+
+// 👉 Ініціалізація відстеження полів .main__form
+function initMainFormTracking(bot) {
+    const mainForm = document.querySelector('.main__form');
+    if (!mainForm || mainForm.dataset.trackingAdded) return;
+
+    const nameInput = mainForm.querySelector('input[name="name"]');
+    const phoneInput = mainForm.querySelector('input[name="phone"]');
+
+    // Обробник blur для ім'я
+    if (nameInput) {
+        nameInput.addEventListener('blur', () => {
+            const value = nameInput.value.trim();
+            if (value) {
+                localStorage.setItem('chatFormName', value);
+                bot._sendDataToSheet({
+                    userID: bot.userID,
+                    LastAction: bot._formatKyivDate(),
+                    main_form_name: value,
+                }).catch(() => {
+                });
+            }
+        });
+    }
+
+    // Обробник blur для телефону
+    if (phoneInput) {
+        phoneInput.addEventListener('blur', () => {
+            const value = phoneInput.value.trim();
+            if (value && value.length >= 8) {
+                localStorage.setItem('chatFormPhone', value);
+                bot._sendDataToSheet({
+                    userID: bot.userID,
+                    LastAction: bot._formatKyivDate(),
+                    main_form_phone: value,
+                }).catch(() => {
+                });
+            }
+        });
+    }
+
+    mainForm.dataset.trackingAdded = 'true';
+}
+
+// Зберігаємо дані при зміні полів форми
+document.addEventListener('input', e => {
+    const input = e.target;
+    if (input.closest('.main__form')) {
+        saveFormDataToStorage();
+    }
+});
+
+document.addEventListener('submit', e => {
+    const form = e.target.closest('.main__form');
+    if (!form) return;
+
+    e.preventDefault();
+
+    if (handleFormSubmit(form)) {
+        const bot = window.chatBotInstance;
+        const progress = window.chatProgressInstance;
+
+        if (bot) {
+            // 👉 Збираємо дані з форми
+            const nameInput = form.querySelector('input[name="name"]');
+            const phoneInput = form.querySelector('input[name="phone"]');
+
+            // 👉 Зберігаємо в state
+            if (nameInput && nameInput.value.trim()) {
+                bot.state.answers.main_form_name = nameInput.value.trim();
+                localStorage.setItem('chatFormName', nameInput.value.trim());
+            }
+            if (phoneInput && phoneInput.value.trim()) {
+                bot.state.answers.main_form_phone = phoneInput.value.trim();
+                localStorage.setItem('chatFormPhone', phoneInput.value.trim());
+            }
+            bot._saveState();
+
+            if (bot.state.answers.main_form_name && bot.state.answers.main_form_phone) {
+                TrackingManager.init();
+            }
+
+            // 👉 Відправляємо в Google Sheets
+            const data = {
+                userID: bot.userID,
+                LastAction: bot._formatKyivDate(),
+            };
+            if (nameInput && nameInput.value.trim()) {
+                data.main_form_name = nameInput.value.trim();
+            }
+            if (phoneInput && phoneInput.value.trim()) {
+                data.main_form_phone = phoneInput.value.trim();
+            }
+            bot._sendDataToSheet(data).catch(() => {});
+            bot._setPixelLeadImage();
+
+            // Запускаємо чат
+            bot.state.answers.clicked_start_chat = false;
+            bot.start();
+            if (progress) progress.reset();
+        }
+    }
+});
+
+//start chat button
+const startChatBtn = document.querySelector('.chat-btn');
+
+startChatBtn?.addEventListener('click', () => {
+    chatBot.classList.remove('hidden');
+
+    // 👉 Відправляємо інформацію про натискання кнопки старту чату
+    const bot = window.chatBotInstance;
+    const progress = window.chatProgressInstance;
+
+    if (bot) {
+        // 👉 Встановлюємо прапорець
+        bot.state.answers.clicked_start_chat = true;
+
+        bot.start();
+
+        // 👉 Скидаємо прогрес при новому старті
+        if (progress) progress.reset();
+
+        bot._sendDataToSheet({
+            userID: bot.userID,
+            LastAction: bot._formatKyivDate(),
+            clicked_start_chat: true,
+        }).catch(() => {
+        });
+    }
+});
+
+// modal close
+const chatBot = document.querySelector('.chat-bot');
+const endModal = document.getElementById('endConsultationModal');
+const modalConfirmBtn = document.getElementById('confirmEnd');
+
+modalConfirmBtn.addEventListener('click', () => {
+    chatBot.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    endModal.classList.remove('active');
+});
+
+// Снятие ошибки при вводе
+document.addEventListener('input', e => {
+    const input = e.target;
+    if (input.closest('.main__form') && input.value.trim()) {
+        if (input.name === 'phone') {
+            if (input.value.trim().length >= 8) {
+                input.classList.remove('error');
+            }
+        } else {
+            input.classList.remove('error');
+        }
+    }
+});
+
