@@ -1727,18 +1727,9 @@ const chatSteps = [
     // +2
     // КРОК 1 — Привітання + мотивація
     {
-      id: 'pre-intro',
-      messages: [
-          (state) => { return state.answers.main_form_name },
-          '<span style="color:red">test message 1</span>',
-          'test message 2',
-          'test message 3',
-      ],
-    },
-    {
         id: 'intro',
         messages: [
-            {text: "Test mic indicator and flexible typing delay: 5 sec", typingIndicator: 'mic', typingDelay: 1000},
+            {text: "Test mic indicator and flexible typing delay: 5 sec", typingIndicator: 'mic', typingDelay: 5000},
             (state) => {
                 if (state.answers.clicked_start_chat) {
                     return '👋 ¡Hola! Bienvenido a <b>Nopalis</b>.\n' +
@@ -2444,12 +2435,13 @@ document.addEventListener('DOMContentLoaded', () => {
         typingDelayMin: 600,     // minimum delay in ms (default: 600)
         typingDelayMax: 6000,    // maximum delay in ms (default: 3000)
         startQueue: {
-            enabled: false,
+            enabled: true,
             // delay: () => 3000 + Math.floor(Math.random() * 4000), // 3–7 sec
-            delay: () => 15000,
+            delay: () => 7000,
             text: `
-                <b>You’re in the queue</b><br>
-                Thanks for your patience! An agent will be with you in about 15 seconds. You're next in line
+                <h3 class="chat-queue-card__title">Вы 1 в очереди </h3>
+                <p class="chat-queue-card__text">Врач скоро подключится к чату.</p>
+                <p class="chat-queue-card__text">Пожалуйста, подождите немного.</p>
             `,
             showTyping: false,
             typingIndicator: 'dots',
