@@ -90,6 +90,7 @@ class ChatBot {
             storageKey: null,
             onAnswer: null,
             onFinish: null,
+            // readStatusDelay: 250,
             avatars: {
                 bot: `${this.basePath}images/cb-ava.png`,
                 user: `${this.basePath}images/cb-user.png`,
@@ -127,6 +128,7 @@ class ChatBot {
         this._queueCountdownToken = null;
         this._runToken = 0;
         //end queue
+        this._lastUserMessageEl = null;
 
         // this.config = {...defaults, ...options};
 
@@ -286,6 +288,49 @@ class ChatBot {
         return el;
     }
 
+    _formatMessageTime(date = new Date()) {
+        return new Intl.DateTimeFormat('es-MX', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+        }).format(date);
+    }
+
+    _buildStatusMarkup(status = 'sent') {
+        return `
+      <span class="message-status ${status}" data-message-status="${status}" aria-label="${status}">
+        <span class="tick">✓</span>
+        <span class="tick tick--second">✓</span>
+      </span>
+    `;
+    }
+
+    _setMessageStatus(messageEl, status) {
+        if (!messageEl) return;
+        const statusEl = messageEl.querySelector('[data-message-status]');
+        if (!statusEl) return;
+        statusEl.className = `message-status ${status}`;
+        statusEl.setAttribute('data-message-status', status);
+        statusEl.setAttribute('aria-label', status);
+    }
+
+    _markMessageAsRead(messageEl, delayMs = this.config.typingDelayMin) {
+        if (!messageEl || !delayMs) {
+            this._setMessageStatus(messageEl, 'read');
+            return;
+        }
+
+        // First set to "delivered" immediately
+        this._setMessageStatus(messageEl, 'delivered');
+
+        // Then set to "read" after delay
+        setTimeout(() => {
+            this._setMessageStatus(messageEl, 'read');
+        }, delayMs / 2);
+
+        console.log(delayMs / 2, 'delayMs read');
+    }
+
     _clearMessages() {
         if (!this.messagesContainer) return;
         this.messagesContainer.innerHTML = '';
@@ -395,9 +440,6 @@ class ChatBot {
 
         for (let i = 0; i < messages.length; i += 1) {
             const raw = messages[i];
-            // const msg = typeof raw === 'function' ? raw(this.state) : raw;
-
-            // support both old format (string/function) and object format
             let msg;
             let messageTypingIndicator = null;
             let messageTypingDelay = null;
@@ -406,36 +448,48 @@ class ChatBot {
                 const rawText = raw.text ?? '';
                 msg = typeof rawText === 'function' ? rawText(this.state) : rawText;
                 messageTypingIndicator = raw.typingIndicator || null;
-                messageTypingDelay = typeof raw.typingDelay === 'number' ? raw.typingDelay : null;  // ← NEW
+                messageTypingDelay = typeof raw.typingDelay === 'number' ? raw.typingDelay : null;
             } else {
                 msg = typeof raw === 'function' ? raw(this.state) : raw;
             }
-            //end
 
-            // Priority: message-level → step-level → length-based fallback
             const delay =
-                messageTypingDelay !== null                           // ← explicit per-message delay
+                messageTypingDelay !== null
                     ? messageTypingDelay
                     : typeof step.typingDelay === 'number'
                         ? step.typingDelay
-                        : this._calcTypingDelay(msg);                // ← auto from length
-            //end
+                        : this._calcTypingDelay(msg);
 
-            console.log(delay);
+            console.log(delay, 'message');
 
-            // priority: message-level > step-level > global default > dots
             const indicatorType =
                 messageTypingIndicator ||
                 step.typingIndicator ||
                 this.config.typingIndicator ||
                 'dots';
-            //end
 
+            // Mark as delivered immediately
+            this._setMessageStatus(this._lastUserMessageEl, 'delivered');
+
+            // Schedule mark as read DURING typing delay (use typingDelayMin)
+            const readDelay = this.config.typingDelayMin || 600;
+            const readTimeout = setTimeout(() => {
+                this._setMessageStatus(this._lastUserMessageEl, 'read');
+            }, readDelay);
+
+            // Show typing
             await this._showTyping(delay, indicatorType);
+
+            // Clear timeout if still pending (in case typing finished before read delay)
+            clearTimeout(readTimeout);
+
+            // Ensure it's marked as read after typing
+            this._setMessageStatus(this._lastUserMessageEl, 'read');
+
             this._addMessage({
                 from: 'bot',
                 text: msg,
-                html: step.html, // якщо текст уже HTML
+                html: step.html,
                 stepId: i === 0 ? step.id : null,
             });
         }
@@ -620,11 +674,10 @@ class ChatBot {
         return String(text ?? '').replace(/\n/g, '<br>');
     }
 
-    _addMessage({from, text, html, stepId}) {
+    _addMessage({from, text, html, stepId, sentAt = Date.now(), status = 'sent'}) {
         if (!this.messagesContainer) return;
 
         const isUser = from === 'user';
-        // Як в оригіналі: sent / received
         const typeClass = isUser ? 'sent' : 'received';
 
         const messageElement = document.createElement('div');
@@ -632,7 +685,7 @@ class ChatBot {
 
         if (stepId) {
             const isIdExist = document.getElementById(`question-${stepId}`);
-            !isIdExist ? messageElement.id = `question-${stepId}` : null
+            if (!isIdExist) messageElement.id = `question-${stepId}`;
         }
 
         const avatarSrc = isUser
@@ -640,20 +693,26 @@ class ChatBot {
             : this.config.avatars.bot;
 
         const content = html || this._formatText(text);
+        const timeLabel = this._formatMessageTime(new Date(sentAt));
 
         messageElement.innerHTML = `
           <img src="${avatarSrc}" alt="Avatar" class="message-avatar">
           <div class="message-content">
             <div class="message-text">${content}</div>
+            <div class="message-meta">
+              <span class="message-time">${timeLabel}</span>
+              ${isUser ? this._buildStatusMarkup(status) : ''}
+            </div>
           </div>
         `;
 
-        // this.messagesContainer.appendChild(messageElement);
-        // this._scrollToBottom();
-
-        //queue
         this.messagesContainer.appendChild(messageElement);
         this._scrollToBottom();
+
+        if (isUser) {
+            this._lastUserMessageEl = messageElement;
+        }
+
         return messageElement;
     }
 
@@ -1668,6 +1727,15 @@ const chatSteps = [
     // +2
     // КРОК 1 — Привітання + мотивація
     {
+      id: 'pre-intro',
+      messages: [
+          (state) => { return state.answers.main_form_name },
+          '<span style="color:red">test message 1</span>',
+          'test message 2',
+          'test message 3',
+      ],
+    },
+    {
         id: 'intro',
         messages: [
             {text: "Test mic indicator and flexible typing delay: 5 sec", typingIndicator: 'mic', typingDelay: 1000},
@@ -1973,6 +2041,7 @@ const chatSteps = [
                     return course.html;
                 }).join('');
 
+                // separated text and cards
                 return 'Cada opción posterior <b>refuerza el efecto de la anterior</b>.' + coursesHTML
             },
         ],
@@ -2373,14 +2442,14 @@ document.addEventListener('DOMContentLoaded', () => {
         steps: chatSteps,
         typingDelayPerChar: 15,  // ms per character (default: 15)
         typingDelayMin: 600,     // minimum delay in ms (default: 600)
-        typingDelayMax: 1000,    // maximum delay in ms (default: 3000)
+        typingDelayMax: 6000,    // maximum delay in ms (default: 3000)
         startQueue: {
             enabled: false,
             // delay: () => 3000 + Math.floor(Math.random() * 4000), // 3–7 sec
             delay: () => 15000,
             text: `
-                <b>Зажди, проффффессор курить!</b><br>
-                Треба трішки почекати щоб стати здоровим
+                <b>You’re in the queue</b><br>
+                Thanks for your patience! An agent will be with you in about 15 seconds. You're next in line
             `,
             showTyping: false,
             typingIndicator: 'dots',
