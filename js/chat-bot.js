@@ -1839,7 +1839,7 @@ const chatSteps = [
         id: 'effect_audio',
         messages: [
             {
-                text: `<div class="audio-player"><div class="controls"><button class="play-pause-button play"></button></div><audio><source src="${basePath}media/1.mp3" type="audio/mpeg"></audio><div class="progress-wrapper"><div class="progress"><div class="progress-bar"></div></div></div><div class="audio-time"><span class="audio-current__time">0:00</span></div></div>`,
+                text: `<div class="audio"><img src="${basePath}images/cb-ava.png" alt="Avatar" class="message-avatar"><div class="audio-player"><div class="controls"><button class="play-pause-button play"></button></div><audio><source src="${basePath}media/1.mp3" type="audio/mpeg"></audio><div class="progress-wrapper"><div class="progress"><div class="progress-bar"></div></div></div><div class="audio-time"><span class="audio-current__time">0:00</span></div></div></div>`,
                 typingIndicator: 'mic',
                 typingDelay: 15000
             }
@@ -2502,7 +2502,7 @@ document.addEventListener('DOMContentLoaded', () => {
         typingDelayMin: 600,     // minimum delay in ms (default: 600)
         typingDelayMax: 1000,    // maximum delay in ms (default: 3000)
         startQueue: {
-            enabled: false,
+            enabled: true,
             // delay: () => 3000 + Math.floor(Math.random() * 4000), // 3–7 sec
             delay: () => 7000,
             text: `

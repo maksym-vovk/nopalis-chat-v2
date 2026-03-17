@@ -1935,14 +1935,14 @@ b {
 
 .chat-review__label {
     display: block;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 
 .chat-review__wrapper {
     background: #f9fafb;
     border-radius: 12px;
     padding: 12px 14px;
-    margin-bottom: 10px;
+    /*margin-bottom: 10px;*/
     border: 1px solid #e5e7eb;
 }
 
