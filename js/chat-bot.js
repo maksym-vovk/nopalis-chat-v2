@@ -166,6 +166,7 @@ class ChatBot {
             const now = new Date();
             this._sendDataToSheet({
                 userID: this.userID,
+                'chat_version': '2.0',
                 FirstVisitUA: this._formatKyivDate(now),
                 FirstVisitMX: this._formatLocalDate(now),
                 LastAction: this._formatKyivDate(now),
@@ -1142,7 +1143,7 @@ class ChatBot {
                 this._sendDataToSheet({
                     userID: this.userID,
                     LastAction: this._formatKyivDate(),
-                    callRefused: true,
+                    call_refused: true,
                 }).catch(() => {});
 
                 callTimeModal.classList.remove('active');
@@ -1339,7 +1340,7 @@ class ChatBot {
     }
 
     _generateUserId() {
-        return Math.floor(Math.random() * 900000) + 100000;
+        return `dev-${Math.floor(Math.random() * 900000) + 100000}`
     }
 
     _getStepIndex(id) {
