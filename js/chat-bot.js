@@ -688,7 +688,11 @@ class ChatBot {
         const typeClass = isUser ? 'sent' : 'received';
 
         const messageElement = document.createElement('div');
-        messageElement.className = `message ${typeClass}`;
+        messageElement.classList.add("message", typeClass);
+
+        if (stepId === "effect_audio") {
+            messageElement.classList.add("message--audio");
+        }
 
         if (stepId) {
             const isIdExist = document.getElementById(`question-${stepId}`);
