@@ -90,6 +90,7 @@
 
 /* Header Styles */
 .chat-header {
+    min-height: auto!important;
     /*background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);*/
     background: #F0EFEC;
     /*backdrop-filter: blur(5.5px);*/
@@ -265,8 +266,8 @@ background: none;
 
 @media screen and (min-width: 768px) {
     .info-panel.active {
-        max-height: 600px;
-        /*max-height: 100%;*/
+        /*max-height: 600px;*/
+        max-height: 100%;
     }
 }
 
@@ -418,7 +419,7 @@ background: none;
 }
 
 .info-footer p {
-    color: #667eea;
+    color: #10b981;
     font-size: 16px;
     font-weight: 600;
     margin: 0;
