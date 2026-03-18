@@ -164,7 +164,7 @@
 }
 
 .choise__label:has(input:checked) .choise__discount:after {
-    border-color: #FCBF0A #FCBF0A #FCBF0A transparent;
+    border-color: rgb(29, 171, 97) rgb(29, 171, 97) rgb(29, 171, 97) transparent;
 }
 
 .choise__label:has(input:checked) .choise__btn {
@@ -287,9 +287,9 @@
 
 .form__input:focus,
 .form__select:focus {
-    border-color: #FCBF0A;
+    border-color: rgb(29, 171, 97);
     outline: none;
-    box-shadow: 0 0 8px 0 #FCBF0A inset;
+    box-shadow: 0 0 8px 0 rgb(29, 171, 97) inset;
 }
 
 .form__input:disabled,
@@ -348,7 +348,7 @@
 }
 
 .custom-select-item:hover {
-    background: #fcbf0a;
+    background: rgb(29, 171, 97, .1);
 }
 
 .custom-select-input.error {

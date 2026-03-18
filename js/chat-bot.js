@@ -298,37 +298,27 @@ class ChatBot {
 
     _buildStatusMarkup(status = 'sent') {
         return `
-      <span class="message-status ${status}" data-message-status="${status}" aria-label="${status}">
-        <span class="tick">✓</span>
-        <span class="tick tick--second">✓</span>
-      </span>
-    `;
+         <span class="message-status ${status}" data-message-status="${status}" aria-label="${status}">
+            <span class="tick" aria-hidden="true"></span>
+            <span class="tick tick--second" aria-hidden="true"></span>
+         </span>
+        `;
     }
 
     _setMessageStatus(messageEl, status) {
         if (!messageEl) return;
         const statusEl = messageEl.querySelector('[data-message-status]');
         if (!statusEl) return;
+
+        const rank = { sent: 0, delivered: 1, read: 2 };
+        const current = statusEl.getAttribute('data-message-status') || 'sent';
+
+        // Prevent downgrades (e.g. read -> delivered), which cause gray/blue blinking.
+        if ((rank[status] ?? -1) < (rank[current] ?? -1)) return;
+
         statusEl.className = `message-status ${status}`;
         statusEl.setAttribute('data-message-status', status);
         statusEl.setAttribute('aria-label', status);
-    }
-
-    _markMessageAsRead(messageEl, delayMs = this.config.typingDelayMin) {
-        if (!messageEl || !delayMs) {
-            this._setMessageStatus(messageEl, 'read');
-            return;
-        }
-
-        // First set to "delivered" immediately
-        this._setMessageStatus(messageEl, 'delivered');
-
-        // Then set to "read" after delay
-        setTimeout(() => {
-            this._setMessageStatus(messageEl, 'read');
-        }, delayMs / 2);
-
-        console.log(delayMs / 2, 'delayMs read');
     }
 
     _clearMessages() {
@@ -468,6 +458,8 @@ class ChatBot {
                             ? step.typingDelay
                             : this._calcTypingDelay(msg);
 
+                console.log(delay, 'messageDelay');
+
                 const indicatorType =
                     messageTypingIndicator ||
                     step.typingIndicator ||
@@ -478,10 +470,12 @@ class ChatBot {
                 this._setMessageStatus(this._lastUserMessageEl, 'delivered');
 
                 // Schedule mark as read DURING typing delay (use typingDelayMin)
-                const readDelay = this.config.typingDelayMin || 600;
+                const readDelay = this.config.typingDelayMin / 2 || 600;
                 const readTimeout = setTimeout(() => {
                     this._setMessageStatus(this._lastUserMessageEl, 'read');
                 }, readDelay);
+
+                console.log(readDelay, 'markReadDelay');
 
                 // Show typing
                 await this._showTyping(delay, indicatorType);
@@ -1089,6 +1083,7 @@ class ChatBot {
         const callTimeModal = document.getElementById('callTimeModal');
         const modalConfirmBtn = endModal?.querySelector('#confirmEnd');
         const modalCancelBtn = endModal?.querySelector('.cancel-btn');
+        const offerForm = document.querySelector('.offer__form');
 
         // Submit call time
         const submitCallTimeBtn = document.getElementById('submitCallTime');
@@ -1124,6 +1119,7 @@ class ChatBot {
                     controlButtons.style.display = '';
                     thankYouMsg.classList.add('hidden');
                     this.root.classList.add('hidden');
+                    if (offerForm) offerForm.classList.add('hidden');
                     document.body.style.overflow = 'auto';
 
                     resetChatAudio()
@@ -1151,6 +1147,7 @@ class ChatBot {
 
                 callTimeModal.classList.remove('active');
                 this.root.classList.add('hidden');
+                if (offerForm) offerForm.classList.add('hidden');
                 document.body.style.overflow = 'auto';
                 resetChatAudio()
             })
@@ -1180,6 +1177,7 @@ class ChatBot {
                 this._clearMessages();
 
                 this.root.classList.add('hidden');
+                if (offerForm) offerForm.classList.add('hidden');
                 document.body.style.overflow = 'auto';
                 if (endModal) {
                     endModal.classList.remove('active');
@@ -1845,7 +1843,7 @@ const chatSteps = [
             {
                 text: `<div class="audio"><img src="${basePath}images/cb-ava.png" alt="Avatar" class="message-avatar"><div class="audio-player"><div class="controls"><button class="play-pause-button play"></button></div><audio><source src="${basePath}media/1.mp3" type="audio/mpeg"></audio><div class="progress-wrapper"><div class="progress"><div class="progress-bar"></div></div></div><div class="audio-time"><span class="audio-current__time">0:00</span></div></div></div>`,
                 typingIndicator: 'mic',
-                typingDelay: 15000
+                typingDelay: 2000
             }
         ],
         options: [
@@ -2502,9 +2500,9 @@ document.addEventListener('DOMContentLoaded', () => {
         messagesContainer: '#chatMessages',
         root: '.chat-bot',
         steps: chatSteps,
-        typingDelayPerChar: 15,  // ms per character (default: 15)
-        typingDelayMin: 600,     // minimum delay in ms (default: 600)
-        typingDelayMax: 1000,    // maximum delay in ms (default: 3000)
+        typingDelayPerChar: 15,  // ms per character (default: 15) human style: 100-250
+        typingDelayMin: 600,     // minimum delay in ms (default: 600-1500)
+        typingDelayMax: 1000,    // maximum delay in ms (default: 3000-5000)
         startQueue: {
             enabled: true,
             // delay: () => 3000 + Math.floor(Math.random() * 4000), // 3–7 sec
