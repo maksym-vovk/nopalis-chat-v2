@@ -1752,15 +1752,15 @@ background: none;
 }
 
 .cancel-btn {
-    background-color: #4f46e5;
+    background-color: rgba(28, 171, 95, 0.8);
     color: #fff;
     transition: all 0.3s ease;
 }
 
 .cancel-btn:hover,
 .cancel-btn:focus {
-    background-color: #4338ca;
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+    background-color: rgba(20, 138, 75, 0.8);
+    box-shadow: 0 4px 12px rgba(28, 171, 95, 0.4);
     transform: translateY(-2px);
 }
 
@@ -2170,13 +2170,13 @@ b {
 }
 
 .call-time-select:hover {
-    border-color: #667eea;
+    border-color: rgba(28, 171, 95, 0.8);
 }
 
 .call-time-select:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: rgba(28, 171, 95, 0.8);
+    box-shadow: 0 0 0 3px rgba(28, 171, 95, 0.1);
 }
 
 .modal-content-call__controls {
@@ -2188,7 +2188,7 @@ b {
 .submit-call-time-btn {
     flex: 1;
     padding: 14px 24px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: rgba(28, 171, 95, 0.8);
     color: white;
     border: none;
     border-radius: 12px;
@@ -2196,12 +2196,13 @@ b {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 12px rgba(28, 171, 95, 0.3);
 }
 
 .submit-call-time-btn:hover {
+    background: rgba(28, 171, 95, 0.8);
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 6px 16px rgba(28, 171, 95, 0.4);
 }
 
 .submit-call-time-btn:active {
@@ -2220,7 +2221,7 @@ b {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    /*box-shadow: 0 4px 12px rgba(28, 171, 95, 0.3);*/
 }
 
 .back-from-call-time-btn:hover,
@@ -2228,7 +2229,7 @@ b {
     transform: translateY(-2px);
     color: #111827;
     background: #e5e7eb;
-    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 12px rgba(28, 171, 95, 0.4);
 }
 
 .back-from-call-time-btn:active,

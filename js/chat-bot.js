@@ -2508,7 +2508,7 @@ document.addEventListener('DOMContentLoaded', () => {
         startQueue: {
             enabled: true,
             // delay: () => 3000 + Math.floor(Math.random() * 4000), // 3–7 sec
-            delay: () => 1000000,
+            delay: () => 3000,
             text: `
                 <h3 class="chat-queue-card__title">Вы 1 в очереди 🥇</h3>
                 <p class="chat-queue-card__text">Врач скоро подключится к чату. Пожалуйста, подождите немного.</p>
