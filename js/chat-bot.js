@@ -891,7 +891,7 @@ class ChatBot {
             class="message-input-send form-button"
             id="chat-btn-${step.id}-send"
             data-step-id="${step.id}">
-            ${step.inputButtonLabel || 'Enviar'}
+            ${step.inputButtonLabel || '<svg width="24" height="24" fill="none"><path fill="white" d="M5.4 19.425a.99.99 0 0 1-.95-.088Q4 19.051 4 18.5V14l8-2-8-2V5.5q0-.55.45-.838a.99.99 0 0 1 .95-.087l15.4 6.5q.625.275.625.925t-.625.925z"/></svg>'}
           </button>
         `;
 
