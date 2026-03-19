@@ -140,7 +140,7 @@
 
         a {
             background-color: transparent;
-            color: #c36
+            /*color: #c36*/
         }
 
         img {
@@ -2936,7 +2936,7 @@
             </div>
 
             <div class="modal-content-call__controls">
-                <button id="submitCallTime" class="submit-call-time-btn">Enviar</button>
+                <button id="submitCallTime" class="submit-call-time-btn" data-text="Enviar" data-process="Enviando...">Enviar</button>
                 <button id="backFromCallTime" type="button" class="back-from-call-time-btn">Atrás</button>
                 <button id="closeCallTime" type="button" class="close-call-time-btn">Я не готовий говорити по телефону
                 </button>
@@ -2957,6 +2957,38 @@
                     </button>
                     <button class="cancel-btn" id="cancelEnd">No</button>
                 </div>
+            </div>
+        </div>
+    </div>
+    <!-- Action Popup -->
+    <div id="actionPopup" class="action-popup" aria-hidden="true">
+        <div class="action-popup__overlay"></div>
+        <div class="action-popup__dialog" role="dialog" aria-modal="true" aria-labelledby="actionPopupTitle">
+            <h2 class="action-popup__title" id="actionPopupTitle">Залиш свої дані</h2>
+            <p class="action-popup__text">Введи своє ім'я та телефон, щоб продовжити.</p>
+            <div class="action-popup__fields">
+                <input
+                        id="actionPopupName"
+                        class="action-popup__input"
+                        type="text"
+                        name="name"
+                        placeholder="Nombre y apellido"
+                        autocomplete="name"
+                />
+                <input
+                        id="actionPopupPhone"
+                        class="action-popup__input"
+                        type="tel"
+                        name="phone"
+                        inputmode="numeric"
+                        placeholder="Número de teléfono"
+                        autocomplete="tel"
+                />
+            </div>
+            <p class="action-popup__success" id="actionPopupSuccess" hidden>Дані успішно надіслано!</p>
+            <div class="action-popup__buttons">
+                <button type="button" class="action-popup__btn action-popup__btn--send" id="actionPopupSend" data-text="Enviar" data-process="Enviando...">Enviar</button>
+                <button type="button" class="action-popup__btn action-popup__btn--back" id="actionPopupBack">Volver</button>
             </div>
         </div>
     </div>

@@ -43,7 +43,8 @@
     /*z-index: 120;*/
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #D9D9D9;
+    /*background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);*/
     /*height: 100vh;*/
     height: 100dvh; /* Динамічна висота viewport для мобільних */
     display: flex;
@@ -64,7 +65,8 @@
     height: 90vh;
     background: #ffffff;
     /*border-radius: 20px;*/
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.17);
+    /*box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);*/
     display: flex;
     flex-direction: column;
     position: relative;
@@ -1809,7 +1811,7 @@ background: none;
 }
 
 .cancel-btn {
-    background-color: rgba(28, 171, 95, 0.8);
+    background-color: rgba(28, 171, 95, 1);
     color: #fff;
     transition: all 0.3s ease;
 }
@@ -2246,7 +2248,7 @@ b {
 .submit-call-time-btn {
     flex: 1;
     padding: 14px 24px;
-    background: rgba(28, 171, 95, 0.8);
+    background: rgba(28, 171, 95, 1);
     color: white;
     border: none;
     border-radius: 12px;
@@ -2661,3 +2663,139 @@ b {
 /*    font-weight: bold;*/
 /*    transform: rotate(45deg);*/
 /*}*/
+
+/* ── Action Popup ── */
+.action-popup {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.action-popup.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.action-popup__overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.action-popup__dialog {
+    position: relative;
+    z-index: 1;
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px 24px 24px;
+    width: min(420px, calc(100vw - 32px));
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    /*transform: scale(0.9) translateY(20px);*/
+    transition:  opacity 0.3s ease;
+    opacity: 0;
+}
+
+.action-popup.active .action-popup__dialog {
+    /*transform: scale(1) translateY(0);*/
+    opacity: 1;
+}
+
+.action-popup__title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.action-popup__text {
+    margin: 0;
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.action-popup__fields {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.action-popup__input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 10px;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+.action-popup__input:focus {
+    border-color: rgba(28, 171, 95, 1);
+}
+
+.action-popup__input.error {
+    border-color: #ef4444;
+}
+
+.action-popup__success {
+    margin: 0;
+    font-size: 15px;
+    color: #16a34a;
+    font-weight: 600;
+    text-align: center;
+}
+
+.action-popup__buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.action-popup__btn {
+    flex: 1;
+    padding: 11px 0;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.action-popup__btn--back {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.action-popup__btn--back:hover {
+    color: #374151;
+    background: #e5e7eb;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+button.action-popup__btn--send {
+    background: rgba(28, 171, 95, 1);
+    color: #fff;
+}
+
+button.action-popup__btn--send:hover {
+    background: rgba(28, 171, 95, 0.8);
+    box-shadow: 0 4px 12px rgba(28, 171, 95, 0.4);
+    transform: translateY(-2px);
+}
+
+.action-popup__btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}

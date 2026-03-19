@@ -896,6 +896,15 @@ class ChatBot {
         `;
 
         const input = block.querySelector('.message-input-field');
+        const phoneStepIds = ['contact_phone', 'main_form_phone', 'whatsapp_phone'];
+        if (phoneStepIds.includes(step.id)) {
+            input.setAttribute('inputmode', 'numeric');
+            input.setAttribute('type', 'tel');
+            input.addEventListener('input', (e) => {
+                e.target.value = e.target.value.replace(/\D/g, '');
+            });
+        }
+
         const sendBtn = block.querySelector('.message-input-send');
 
         const send = () => {
@@ -1088,45 +1097,56 @@ class ChatBot {
 
         // Submit call time
         const submitCallTimeBtn = document.getElementById('submitCallTime');
-        if (submitCallTimeBtn) {
-            submitCallTimeBtn.addEventListener('click', () => {
-                const selectedTime = document.getElementById('callTimeSelect').value;
-                const timeSelector = callTimeModal.querySelector('.time-selector');
-                // const submitBtn = callTimeModal.querySelector('.submit-call-time-btn');
-                const controlButtons = callTimeModal.querySelector('.modal-content-call__controls');
-                const thankYouMsg = document.getElementById('thankYouMessage');
 
-                // Відправляємо дані
-                this._sendDataToSheet({
+        submitCallTimeBtn?.addEventListener('click', async () => {
+            const select = document.getElementById('callTimeSelect');
+            const selectedTime = select?.value;
+            const controlButtons = callTimeModal?.querySelector('.modal-content-call__controls');
+
+            // Visual + functional disable
+            submitCallTimeBtn.disabled = true;
+            submitCallTimeBtn.style.opacity = '0.6';
+            submitCallTimeBtn.style.cursor = 'not-allowed';
+            submitCallTimeBtn.textContent = submitCallTimeBtn.dataset.process;
+
+            try {
+                await this._sendDataToSheet({
                     userID: this.userID,
                     LastAction: this._formatKyivDate(),
                     preferred_call_time: normalizeTime(selectedTime),
-                }).catch(() => {});
+                });
+            } catch (e) {
+                console.error(e);
+            }
 
+            delete this.state.answers.main_form_name;
+            delete this.state.answers.main_form_phone;
+            this._saveState();
 
-                delete this.state.answers.main_form_name;
-                delete this.state.answers.main_form_phone;
-                this._saveState();
+            // Restore button before showing success
+            submitCallTimeBtn.disabled = false;
+            submitCallTimeBtn.style.opacity = '';
+            submitCallTimeBtn.style.cursor = '';
+            submitCallTimeBtn.textContent = submitCallTimeBtn.dataset.text;
 
-                // Показуємо подяку
-                timeSelector.style.display = 'none';
-                controlButtons.style.display = 'none';
-                thankYouMsg.classList.remove('hidden');
+            // Show success state
+            if (controlButtons) controlButtons.style.display = 'none';
+            const thankYouMsg = document.getElementById('thankYouMessage');
+            thankYouMsg?.classList.remove('hidden');
 
-                // Закриваємо через 3 секунди
-                setTimeout(() => {
-                    callTimeModal.classList.remove('active');
-                    timeSelector.style.display = '';
-                    controlButtons.style.display = '';
-                    thankYouMsg.classList.add('hidden');
-                    this.root.classList.add('hidden');
-                    if (offerForm) offerForm.classList.add('hidden');
-                    document.body.style.overflow = 'auto';
+            await new Promise(resolve => setTimeout(resolve, 3000));
 
-                    resetChatAudio()
-                }, 3000);
-            });
-        }
+            // Close and reset
+            callTimeModal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+            if (controlButtons) controlButtons.style.display = '';
+            thankYouMsg?.classList.add('hidden');
+            this.root.classList.add('hidden');
+            document.querySelector('.offer__form')?.classList.add('hidden');
+
+            resetChatAudio();
+        });
+
 
         const backFromCallTimeBtn = callTimeModal?.querySelector('.back-from-call-time-btn');
         if (backFromCallTimeBtn) {
@@ -1193,6 +1213,20 @@ class ChatBot {
                 }
             });
         }
+
+        // Close modals by overlay click
+        callTimeModal?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.remove('active');
+                document.body.style.overflow = 'auto';
+            }
+        });
+
+        endModal?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.remove('active');
+            }
+        });
     }
 
     initModal() {
@@ -2506,8 +2540,8 @@ document.addEventListener('DOMContentLoaded', () => {
         typingDelayMax: 1000,    // maximum delay in ms (default: 3000-5000)
         startQueue: {
             enabled: true,
-            // delay: () => 3000 + Math.floor(Math.random() * 4000), // 3–7 sec
-            delay: () => 3000,
+            // delay: () => 10000 + Math.floor(Math.random() * 5001), // 10–15 sec
+            delay: () => 1000,
             text: `
                 <h3 class="chat-queue-card__title">Вы 1 в очереди 🥇</h3>
                 <p class="chat-queue-card__text">Врач скоро подключится к чату. Пожалуйста, подождите немного.</p>
@@ -2747,6 +2781,11 @@ function initMainFormTracking(bot) {
 
     // Обробник blur для телефону
     if (phoneInput) {
+        phoneInput.setAttribute('inputmode', 'numeric');
+        phoneInput.addEventListener('input', (e) => {
+            e.target.value = e.target.value.replace(/\D/g, '');
+        });
+
         phoneInput.addEventListener('blur', () => {
             const value = phoneInput.value.trim();
             if (value && value.length >= 8) {
@@ -2877,3 +2916,112 @@ document.addEventListener('input', e => {
     }
 });
 
+// ── Action Popup ──────────────────────────────────────────
+(function initActionPopup() {
+    const popup      = document.getElementById('actionPopup');
+    const overlay    = popup?.querySelector('.action-popup__overlay');
+    const nameInput  = document.getElementById('actionPopupName');
+    const phoneInput = document.getElementById('actionPopupPhone');
+    const sendBtn    = document.getElementById('actionPopupSend');
+    const backBtn    = document.getElementById('actionPopupBack');
+    const successEl  = document.getElementById('actionPopupSuccess');
+
+    if (!popup) return;
+
+    let closeTimer = null;
+
+    // --- helpers ---
+    function openPopup() {
+        // Pre-fill from localStorage if available
+        const savedName  = localStorage.getItem('chatFormName')  || '';
+        const savedPhone = localStorage.getItem('chatFormPhone') || '';
+
+        nameInput.value  = savedName;
+        phoneInput.value = savedPhone;
+
+        // Reset UI state
+        successEl.hidden = true;
+        nameInput.classList.remove('error');
+        phoneInput.classList.remove('error');
+        sendBtn.disabled = false;
+        sendBtn.textContent = sendBtn.dataset.text
+
+        popup.classList.add('active');
+        popup.setAttribute('aria-hidden', 'false');
+        nameInput.focus();
+    }
+
+    function closePopup() {
+        popup.classList.remove('active');
+        popup.setAttribute('aria-hidden', 'true');
+        if (closeTimer) {
+            clearTimeout(closeTimer);closeTimer = null;
+        }}
+
+    // --- phone: digits only ---
+    phoneInput.addEventListener('input', (e) => {
+        e.target.value = e.target.value.replace(/\D/g, '');
+    });
+
+    // --- send ---
+    sendBtn.addEventListener('click', async () => {
+        const name  = nameInput.value.trim();
+        const phone = phoneInput.value.trim();
+
+        // Basic validation
+        let valid = true;
+        nameInput.classList.remove('error');
+        phoneInput.classList.remove('error');
+
+        if (!name) {
+            nameInput.classList.add('error');
+            valid = false;
+        }
+        if (!phone || phone.length < 8) {
+            phoneInput.classList.add('error');
+            valid = false;
+        }
+        if (!valid) return;
+
+        sendBtn.disabled = true;
+        sendBtn.textContent = sendBtn.dataset.process
+
+        // Persist to localStorage
+        localStorage.setItem('chatFormName',  name);
+        localStorage.setItem('chatFormPhone', phone);
+
+        // Send via bot helper (same pattern used elsewhere in the file)
+        try {
+            await window.chatBotInstance?._sendDataToSheet({
+                userID:       window.chatBotInstance.userID,
+                LastAction:   window.chatBotInstance._formatKyivDate(),
+                full_name:     name,
+                contact_phone: phone,
+            });
+        } catch (_) {
+            // fire-and-forget — don't block UX on network error
+        }
+
+        // Show success, then auto-close after 3 s
+        successEl.hidden = false;
+        closeTimer = setTimeout(closePopup, 3000);
+    });
+
+    // --- back / overlay → close immediately ---
+    backBtn.addEventListener('click', closePopup);
+    overlay.addEventListener('click', closePopup);
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && popup.classList.contains('active')) {
+            closePopup();
+        }
+    });
+
+    // --- bind all .action-btn triggers ---
+    document.querySelectorAll('.action-btn').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            openPopup();
+        });
+    });
+})();

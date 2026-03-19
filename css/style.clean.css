@@ -52,7 +52,7 @@ p {
 a {
     background-color: transparent;
     text-decoration: none;
-    color: #c36
+    /*color: #c36*/
 }
 
 a:active,
@@ -219,14 +219,14 @@ ol li:not(:last-of-type) {
 button {
     display: inline-block;
     font-weight: 400;
-    color: #c36;
+    /*color: #c36;*/
     text-align: center;
     /*white-space: nowrap;*/
     -webkit-user-select: none;
     -moz-user-select: none;
     user-select: none;
     background-color: transparent;
-    border: 1px solid #c36;
+    /*border: 1px solid #c36;*/
     padding: .5rem 1rem;
     font-size: 1rem;
     border-radius: 3px;
@@ -246,7 +246,7 @@ button:focus {
 button:focus,
 button:hover {
     color: #fff;
-    background-color: #c36;
+    /*background-color: #c36;*/
     text-decoration: none
 }
 
@@ -409,7 +409,7 @@ p {
 a {
     background-color: transparent;
     text-decoration: none;
-    color: #c36;
+    /*color: #c36;*/
 }
 
 a:active,
@@ -565,14 +565,14 @@ button:-moz-focusring {
 button {
     display: inline-block;
     font-weight: 400;
-    color: #c36;
+    /*color: #c36;*/
     text-align: center;
     /*white-space: nowrap;*/
     -webkit-user-select: none;
     -moz-user-select: none;
     user-select: none;
     background-color: transparent;
-    border: 1px solid #c36;
+    /*border: 1px solid #c36;*/
     padding: 0.5rem 1rem;
     font-size: 1rem;
     border-radius: 3px;
@@ -593,7 +593,7 @@ button:focus {
 button:focus,
 button:hover {
     color: #fff;
-    background-color: #c36;
+    /*background-color: #c36;*/
     text-decoration: none;
 }
 
