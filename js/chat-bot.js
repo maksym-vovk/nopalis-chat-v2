@@ -1429,7 +1429,28 @@ class ChatBot {
 
     _showDeliveryForm() {
         const form = document.querySelector('.offer__form');
-        if (!form) return;
+        if (!form || !this.messagesContainer) return;
+
+        // Create a dedicated bot message bubble for the delivery form once
+        let host = this.messagesContainer.querySelector('#delivery-form-host');
+        if (!host) {
+            const message = document.createElement('div');
+            message.className = 'message received message--delivery-form';
+            message.innerHTML = `
+          <div class="message-content">
+            <div class="message-text">
+              <div id="delivery-form-host"></div>
+            </div>
+          </div>
+        `;
+            this.messagesContainer.appendChild(message);
+            host = message.querySelector('#delivery-form-host');
+        }
+
+        // Move the existing form node into the message host (do not clone)
+        if (form.parentElement !== host) {
+            host.appendChild(form);
+        }
 
         // Спочатку форма видима, але прозора
         form.classList.remove('hidden');
@@ -1595,6 +1616,7 @@ class ChatBot {
 
                 setTimeout(() => {
                     form.classList.add('hidden');
+                    document.querySelector('.message--delivery-form').style.display = 'none';
                     form.style.opacity = '';
                     form.style.transform = '';
 

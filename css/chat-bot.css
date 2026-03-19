@@ -662,6 +662,24 @@
     text-align: left;
 }
 
+.message--delivery-form {
+    max-width: 100%;
+    width: 100%;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.message--delivery-form::after {
+    display: none;
+}
+
+.message--delivery-form .message-content,
+.message--delivery-form .message-text,
+.message--delivery-form #delivery-form-host {
+    width: 100%;
+}
+
 /* Input Styles */
 .chat-input {
     background: white;
