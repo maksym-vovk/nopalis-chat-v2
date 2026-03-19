@@ -2635,12 +2635,67 @@ function setupAudioPlayer(audioPlayer) {
 
     const audio = audioPlayer.querySelector('audio');
     const playPauseButton = audioPlayer.querySelector('.play-pause-button');
+    const progressContainer = audioPlayer.querySelector('.progress');
     const progressBar = audioPlayer.querySelector('.progress-bar');
     const currentTimeDisplay = audioPlayer.querySelector('.audio-current__time');
 
     if (!audio || !playPauseButton || !progressBar || !currentTimeDisplay) return;
 
     let isPlaying = false;
+
+    // Seek on click
+    progressContainer.addEventListener('click', (e) => {
+        const rect = progressContainer.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const ratio = Math.max(0, Math.min(1, clickX / rect.width));
+        if (audio.duration && isFinite(audio.duration)) {
+            audio.currentTime = ratio * audio.duration;
+        }
+    });
+
+    // Drag-seek
+    let isDragging = false;
+
+    progressContainer.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        const rect = progressContainer.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        if (audio.duration && isFinite(audio.duration)) {
+            audio.currentTime = ratio * audio.duration;
+        }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const rect = progressContainer.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        if (audio.duration && isFinite(audio.duration)) {
+            audio.currentTime = ratio * audio.duration;
+        }
+    });
+
+    document.addEventListener('mouseup', () => { isDragging = false; });
+
+    // Touch
+    progressContainer.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const rect = progressContainer.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
+        if (audio.duration && isFinite(audio.duration)) {
+            audio.currentTime = ratio * audio.duration;
+        }
+    }, { passive: false });
+
+    progressContainer.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const rect = progressContainer.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
+        if (audio.duration && isFinite(audio.duration)) {
+            audio.currentTime = ratio * audio.duration;
+        }
+    }, { passive: false });
 
     playPauseButton.addEventListener("click", () => {
         if (isPlaying) {
@@ -2661,9 +2716,7 @@ function setupAudioPlayer(audioPlayer) {
 
         const currentMinutes = Math.floor(currentTime / 60);
         const currentSeconds = Math.floor(currentTime % 60);
-        const listenTime = `${currentMinutes}:${currentSeconds < 10 ? '0' : ''}${currentSeconds}`;
-
-        currentTimeDisplay.textContent = listenTime;
+        currentTimeDisplay.textContent = `${currentMinutes}:${currentSeconds < 10 ? '0' : ''}${currentSeconds}`;
 
         const progress = (currentTime / duration) * 100;
         progressBar.style.width = `${progress}%`;

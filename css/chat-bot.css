@@ -2540,6 +2540,10 @@ b {
     transition: width 0.25s linear;
 }
 
+.progress-bar * {
+    pointer-events: none;
+}
+
 .progress-bar:before {
     content: '';
     position: absolute;
