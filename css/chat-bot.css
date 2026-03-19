@@ -97,7 +97,7 @@
     background: #F0EFEC;
     /*backdrop-filter: blur(5.5px);*/
     color: black;
-    position: relative;
+    /*position: relative;*/
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -130,6 +130,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
+    cursor: pointer;
 }
 
 .avatar {
@@ -237,13 +238,16 @@ background: none;
 
 /* Info Panel Styles */
 .info-panel {
+    position: absolute;
+    inset: 0;
     background: white;
     border-radius: 0 0 0px 0px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
     z-index: 100;
-    max-height: 0;
+    /*max-height: 0;*/
     overflow: hidden;
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 24px;
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -251,39 +255,17 @@ background: none;
 }
 
 .info-panel.active {
-    max-height: 500px;
+    /*max-height: 500px;*/
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
     transform: translateY(0);
-    position: relative;
     overflow-y: auto;
 }
 
-@media screen and (max-width: 767px) {
-    .info-panel.active {
-        overflow-y: auto;
-    }
-}
-
-@media screen and (min-width: 768px) {
-    .info-panel.active {
-        /*max-height: 600px;*/
-        max-height: 100%;
-    }
-}
 
 .info-panel.active .info-content {
-    padding: 24px;
-
-    /*inset: 0;*/
     background: #fff; /* natively light, дымчатый */
-    /*display: flex;*/
-    /*justify-content: center;*/
-    /*align-items: flex-start;*/
-    /*padding-top: 60px;*/
-    /*opacity: 0;*/
-    /*pointer-events: none;*/
     transition: opacity 0.3s ease-in-out;
     backdrop-filter: blur(2px); /* лёгкий blur */
 }
@@ -291,10 +273,7 @@ background: none;
 .info-header {
     text-align: center;
     margin-bottom: 24px;
-    /*padding-bottom: 20px;*/
-    /*border-bottom: 1px solid #e5e7eb;*/
     opacity: 0;
-    transform: translateX(-20px);
 }
 
 .info-panel.active .info-header {
@@ -445,27 +424,27 @@ background: none;
 }
 
 /* Responsive adjustments for info panel */
-@media (max-width: 768px) {
-    .info-panel {
-        border-radius: 0;
-    }
+/*@media (max-width: 768px) {*/
+/*    .info-panel {*/
+/*        border-radius: 0;*/
+/*    }*/
 
-    .info-content {
-        padding: 20px;
-    }
+/*    .info-content {*/
+/*        padding: 20px;*/
+/*    }*/
 
-    .info-header h2 {
-        font-size: 20px;
-    }
+/*    .info-header h2 {*/
+/*        font-size: 20px;*/
+/*    }*/
 
-    .info-item {
-        padding: 12px;
-    }
+/*    .info-item {*/
+/*        padding: 12px;*/
+/*    }*/
 
-    .info-item i {
-        font-size: 18px;
-    }
-}
+/*    .info-item i {*/
+/*        font-size: 18px;*/
+/*    }*/
+/*}*/
 
 /* Messages Styles */
 .chat-messages {
@@ -921,9 +900,9 @@ background: none;
     /*    margin-bottom: 15px;*/
     /*}*/
 
-    .info-content {
-        padding: 15px 20px;
-    }
+    /*.info-content {*/
+    /*    padding: 15px 20px;*/
+    /*}*/
 }
 
 /* Extra small screens */
@@ -945,9 +924,9 @@ background: none;
         margin-bottom: 12px;
     }
 
-    .info-content {
-        padding: 12px 15px;
-    }
+    /*.info-content {*/
+    /*    padding: 12px 15px;*/
+    /*}*/
 
     .message-button,
     .form-button {

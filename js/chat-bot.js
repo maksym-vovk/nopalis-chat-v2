@@ -1004,80 +1004,97 @@ class ChatBot {
         this._scrollToBottom();
     }
 
+    initProfile() {
+        const headerProfileInfo = document.querySelector('.header-info')
+        const profile = document.querySelector('.info-panel')
+        const closeProfileBtn = document.querySelector('#closeProfileBtn')
+
+        headerProfileInfo.addEventListener('click', () => this.openProfile(profile))
+        closeProfileBtn.addEventListener('click', () => this.closeProfile(profile))
+    }
+
+    openProfile(profile) {
+        profile.classList.add('active')
+    }
+
+    closeProfile(profile) {
+        profile.classList.remove('active')
+    }
+
     initInfoPanel() {
-        const infoBtn = document.getElementById('infoBtn');
-        const infoPanel = document.getElementById('infoPanel');
-        const infoPanelClose = document.querySelector('.info-panel-close');
-        const chatHeader = document.querySelector('.chat-header');
-        let isInfoPanelOpen = false;
-
-        if (!infoBtn || !infoPanel || !infoPanelClose || !chatHeader) return;
-
-        infoBtn.addEventListener('click', e => {
-            e.preventDefault();
-            e.stopPropagation();
-
-            if (isInfoPanelOpen) {
-                this.closeInfoPanel();
-                isInfoPanelOpen = false;
-            } else {
-                this.openInfoPanel();
-                isInfoPanelOpen = true;
-            }
-        });
-
-        infoPanelClose.addEventListener('click', () => {
-            if (isInfoPanelOpen) {
-                this.closeInfoPanel();
-                isInfoPanelOpen = false;
-            }
-        });
-
-        document.addEventListener('keydown', e => {
-            if (e.key === 'Escape' && isInfoPanelOpen) {
-                this.closeInfoPanel();
-                isInfoPanelOpen = false;
-            }
-        });
-
-        document.addEventListener('click', e => {
-            if (isInfoPanelOpen && !infoPanel.contains(e.target)) {
-                this.closeInfoPanel();
-                isInfoPanelOpen = false;
-            }
-        });
-
-        infoPanel.addEventListener('click', e => {
-            e.stopPropagation();
-        });
+        // const infoBtn = document.getElementById('infoBtn');
+        // const infoPanel = document.getElementById('infoPanel');
+        // const infoPanelClose = document.querySelector('.info-panel-close');
+        // const chatHeader = document.querySelector('.chat-header');
+        // let isInfoPanelOpen = false;
+        //
+        // if (!infoBtn || !infoPanel || !infoPanelClose || !chatHeader) return;
+        //
+        // infoBtn.addEventListener('click', e => {
+        //     e.preventDefault();
+        //     e.stopPropagation();
+        //
+        //     if (isInfoPanelOpen) {
+        //         this.closeInfoPanel();
+        //         isInfoPanelOpen = false;
+        //     } else {
+        //         this.openInfoPanel();
+        //         isInfoPanelOpen = true;
+        //     }
+        // });
+        //
+        // infoPanelClose.addEventListener('click', () => {
+        //     if (isInfoPanelOpen) {
+        //         this.closeInfoPanel();
+        //         isInfoPanelOpen = false;
+        //     }
+        // });
+        //
+        // document.addEventListener('keydown', e => {
+        //     if (e.key === 'Escape' && isInfoPanelOpen) {
+        //         this.closeInfoPanel();
+        //         isInfoPanelOpen = false;
+        //     }
+        // });
+        //
+        // document.addEventListener('click', e => {
+        //     if (isInfoPanelOpen && !infoPanel.contains(e.target)) {
+        //         this.closeInfoPanel();
+        //         isInfoPanelOpen = false;
+        //     }
+        // });
+        //
+        // infoPanel.addEventListener('click', e => {
+        //     e.stopPropagation();
+        // });
     }
 
-    openInfoPanel() {
-        const infoPanel = document.getElementById('infoPanel');
-        const infoBtn = document.getElementById('infoBtn');
-        const chatHeader = document.querySelector('.chat-header');
-
-        if (!infoPanel || !infoBtn || !chatHeader || !this.messagesContainer) return;
-
-        this.messagesContainer.classList.add('hidden');
-        infoPanel.classList.add('active');
-        infoBtn.style.transform = 'rotate(180deg)';
-        infoBtn.style.transition = 'transform 0.3s ease';
-        chatHeader.style.minHeight = '400px';
-    }
-
-    closeInfoPanel() {
-        const infoPanel = document.getElementById('infoPanel');
-        const infoBtn = document.getElementById('infoBtn');
-        const chatHeader = document.querySelector('.chat-header');
-
-        if (!infoPanel || !infoBtn || !chatHeader || !this.messagesContainer) return;
-
-        this.messagesContainer.classList.remove('hidden');
-        infoPanel.classList.remove('active');
-        infoBtn.style.transform = 'rotate(0deg)';
-        chatHeader.style.minHeight = 'auto';
-    }
+    // openInfoPanel() {
+    //     const infoPanel = document.getElementById('infoPanel');
+    //     const infoBtn = document.getElementById('infoBtn');
+    //     const chatHeader = document.querySelector('.chat-header');
+    //
+    //     if (!infoPanel || !infoBtn || !chatHeader || !this.messagesContainer) return;
+    //
+    //     this.messagesContainer.classList.add('hidden');
+    //     infoPanel.classList.add('active');
+    //     infoBtn.style.transform = 'rotate(180deg)';
+    //     infoBtn.style.transition = 'transform 0.3s ease';
+    //     chatHeader.style.minHeight = '400px';
+    // }
+    //
+    // closeInfoPanel() {
+    //     const infoPanel = document.getElementById('infoPanel');
+    //     const infoBtn = document.getElementById('infoBtn');
+    //     const chatHeader = document.querySelector('.chat-header');
+    //
+    //     if (!infoPanel || !infoBtn || !chatHeader || !this.messagesContainer) return;
+    //
+    //     this.messagesContainer.classList.remove('hidden');
+    //     infoPanel.classList.remove('active');
+    //     infoBtn.style.transform = 'rotate(0deg)';
+    //     chatHeader.style.minHeight = 'auto';
+    // }
 
     _shouldShowCallTimeModal() {
         return (
@@ -2611,8 +2628,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.chatBotInstance = bot;
     window.chatProgressInstance = chatProgress; // для доступу ззовні
 
-    // bot.start();
-    bot.initInfoPanel();
+    // bot.initInfoPanel();
+    bot.initProfile();
     bot.initClose();
     bot.initModal();
 
