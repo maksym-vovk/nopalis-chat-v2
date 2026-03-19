@@ -374,3 +374,14 @@
         max-width: 100%;
     }
 }
+
+@media (max-width: 479px) {
+    .form__wrapper .form__select-wrapper,
+    .form__wrapper .form__label {
+        width: 100%;
+    }
+
+    .offer__form {
+        padding: 15px;
+    }
+}
