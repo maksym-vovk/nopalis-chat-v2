@@ -1079,7 +1079,7 @@ class ChatBot {
     }
 
     initClose() {
-        const closeBtn = this.root.querySelector('.close-btn');
+        const closeBtn = this.root.querySelector('#closeBtn');
         const endModal = document.getElementById('endConsultationModal');
         const callTimeModal = document.getElementById('callTimeModal');
         const modalConfirmBtn = endModal?.querySelector('#confirmEnd');
