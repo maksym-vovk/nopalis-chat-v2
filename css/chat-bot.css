@@ -664,15 +664,19 @@
 
 .message--delivery-form {
     max-width: 100%;
-    width: 100%;
+    /*width: 100%;*/
     padding: 0;
     background: transparent;
     box-shadow: none;
 }
 
-.message--delivery-form::after {
-    display: none;
-}
+/*.message.received.message--delivery-form {*/
+/*    margin: 0;*/
+/*}*/
+
+/*.message--delivery-form::after {*/
+/*    display: none;*/
+/*}*/
 
 .message--delivery-form .message-content,
 .message--delivery-form .message-text,
