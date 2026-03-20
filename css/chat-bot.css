@@ -81,7 +81,7 @@
         opacity: 0;
     }
     60% {
-        transform: translateY(-15px) scale(1.02);
+        transform: translateY(0) scale(1.02);
         opacity: 0.9;
     }
     100% {
@@ -954,7 +954,18 @@
 /* Extra small screens */
 @media (max-width: 480px) {
     .chat-bot {
+        background: url(../images/chat-bg.png);
+        background-size: cover;
         padding: 0;
+    }
+
+    .chat-container {
+        background: transparent;
+        box-shadow: none !important;
+    }
+
+    .chat-messages {
+        background: transparent;
     }
 
     .info-item p,
