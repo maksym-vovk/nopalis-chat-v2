@@ -837,7 +837,7 @@ class ChatBot {
                     } else {
                         if (endModal) {
                             endModal.classList.add('active');
-                            document.body.style.overflow = 'hidden';
+                            setBodyScrollLock(true);
                         }
                     }
                 });
@@ -1155,7 +1155,7 @@ class ChatBot {
 
             // Close and reset
             callTimeModal.classList.remove('active');
-            document.body.style.overflow = 'auto';
+            setBodyScrollLock(false);
             if (controlButtons) controlButtons.style.display = '';
             thankYouMsg?.classList.add('hidden');
             this.root.classList.add('hidden');
@@ -1170,7 +1170,7 @@ class ChatBot {
             backFromCallTimeBtn.addEventListener('click', () => {
                 // Просто закриваємо модалку, повертаємося до чату
                 callTimeModal.classList.remove('active');
-                document.body.style.overflow = 'auto';
+                syncBodyScrollLockWithChat();
             });
         }
         const closeCallTimeBtn = callTimeModal?.querySelector('.close-call-time-btn');
@@ -1186,7 +1186,7 @@ class ChatBot {
                 callTimeModal.classList.remove('active');
                 this.root.classList.add('hidden');
                 if (offerForm) offerForm.classList.add('hidden');
-                document.body.style.overflow = 'auto';
+                setBodyScrollLock(false);
                 resetChatAudio()
             })
         }
@@ -1216,7 +1216,7 @@ class ChatBot {
 
                 this.root.classList.add('hidden');
                 if (offerForm) offerForm.classList.add('hidden');
-                document.body.style.overflow = 'auto';
+                setBodyScrollLock(false);
                 if (endModal) {
                     endModal.classList.remove('active');
                 }
@@ -1235,7 +1235,7 @@ class ChatBot {
         callTimeModal?.addEventListener('click', function(e) {
             if (e.target === this) {
                 this.classList.remove('active');
-                document.body.style.overflow = 'auto';
+                syncBodyScrollLockWithChat();
             }
         });
 
@@ -1280,7 +1280,7 @@ class ChatBot {
         modalImage.alt = imageAlt || '';
 
         modal.classList.add('active');
-        document.body.style.overflow = 'hidden';
+        setBodyScrollLock(true);
     }
 
     closeModal() {
@@ -1288,7 +1288,7 @@ class ChatBot {
         if (!modal) return;
 
         modal.classList.remove('active');
-        document.body.style.display = '';
+        syncBodyScrollLockWithChat();
     }
 
     makeImageClickable(imageElement) {
@@ -2636,7 +2636,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (window.location.pathname.includes('subscribe')) {
                     // ми вже на сторінці оформлення → просто закриваємо чат
                     chatRoot.classList.add('hidden');
-                    document.body.style.overflow = 'auto';
+                    setBodyScrollLock(false);
                 } else {
                     // на LP → після паузи редіректимо на subscribe
                     // window.location.href = 'subscribe123.html';
@@ -2826,9 +2826,21 @@ function handleFormSubmit(form) {
 
     if (allFilled) {
         chatBot.classList.remove('hidden');
+        setBodyScrollLock(true);
     }
 
     return allFilled;
+}
+
+function setBodyScrollLock(isLocked) {
+    document.documentElement.classList.toggle('chat-scroll-lock', isLocked);
+    document.body.classList.toggle('chat-scroll-lock', isLocked);
+}
+
+function syncBodyScrollLockWithChat() {
+    const chatRoot = document.querySelector('.chat-bot');
+    const isChatOpen = !!chatRoot && !chatRoot.classList.contains('hidden');
+    setBodyScrollLock(isChatOpen);
 }
 
 // Зберігаємо дані форми в localStorage для автозаповнення в чаті
@@ -2960,6 +2972,7 @@ const startChatBtn = document.querySelector('.chat-btn');
 
 startChatBtn?.addEventListener('click', () => {
     chatBot.classList.remove('hidden');
+    setBodyScrollLock(true);
 
     // 👉 Відправляємо інформацію про натискання кнопки старту чату
     const bot = window.chatBotInstance;
@@ -2990,7 +3003,7 @@ const modalConfirmBtn = document.getElementById('confirmEnd');
 
 modalConfirmBtn.addEventListener('click', () => {
     chatBot.classList.add('hidden');
-    document.body.style.overflow = 'auto';
+    setBodyScrollLock(false);
     endModal.classList.remove('active');
 });
 

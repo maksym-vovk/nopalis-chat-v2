@@ -7,6 +7,10 @@ window.addEventListener('DOMContentLoaded', () => {
       const chatBot = document.querySelector('.chat-bot');
       if (chatBot) {
         chatBot.classList.remove('hidden');
+
+          if (typeof setBodyScrollLock === 'function') {
+              setBodyScrollLock(true);
+          }
       }
 
       // сбросить, чтобы сработало только один раз
