@@ -479,7 +479,6 @@ body.chat-scroll-lock {
     overflow-y: auto;
     background: url("../images/chat-bg.png");
     background-size: cover;
-    background-size: 500px;
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -1865,11 +1864,13 @@ body.chat-scroll-lock {
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 10px;
 }
 
 .modal-buttons button {
+    flex: 1;
     padding: 10px 20px;
-    margin: 0 10px;
+    /*margin: 0 10px;*/
     border-radius: 8px;
     border: none;
     cursor: pointer;
@@ -2325,7 +2326,7 @@ b {
 .modal-content-call__controls {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px 16px;
+    gap: 10px;
 }
 
 .submit-call-time-btn {
@@ -2372,7 +2373,7 @@ b {
     transform: translateY(-2px);
     color: #111827;
     background: #e5e7eb;
-    box-shadow: 0 4px 12px rgba(28, 171, 95, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .back-from-call-time-btn:active,
