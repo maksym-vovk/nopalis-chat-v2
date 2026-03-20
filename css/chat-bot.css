@@ -138,6 +138,11 @@ body.chat-scroll-lock {
     align-items: center;
     gap: 12px;
     cursor: pointer;
+
+}
+
+.header-info * {
+    pointer-events: none;
 }
 
 .avatar {
@@ -230,6 +235,10 @@ body.chat-scroll-lock {
     background: none;
 }
 
+.action-back * {
+    pointer-events: none;
+}
+
 .action-btn i {
     width: 20px;
     height: 20px;
@@ -242,6 +251,10 @@ body.chat-scroll-lock {
 
 .action-btn:focus {
     background: rgba(255, 255, 255, 0.1);
+}
+
+.action-btn * {
+    pointer-events: none;
 }
 
 /* Info Panel Styles */
@@ -1296,6 +1309,11 @@ body.chat-scroll-lock {
 .message-button:active,
 .form-button:active {
     transform: translateY(0);
+}
+
+.message-button *,
+.form-button * {
+    pointer-events: none;
 }
 
 .chat-form {
