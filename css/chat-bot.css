@@ -470,6 +470,7 @@
     flex: 1;
     padding: 20px 10px;
     overflow-y: auto;
+    scrollbar-gutter: stable;
     background: url("../images/chat-bg.png");
     background-size: cover;
     background-size: 500px;
@@ -952,6 +953,10 @@
 
 /* Extra small screens */
 @media (max-width: 480px) {
+    .chat-bot {
+        padding: 0;
+    }
+
     .info-item p,
     .info-title {
         line-height: 1.3;
@@ -2686,7 +2691,7 @@ b {
     border: none;
     outline: none;
     border-radius: 20px;
-    font-size: 14px;
+    font-size: 16px;
     background-color: transparent;
     color: #000;
     /*box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);*/
