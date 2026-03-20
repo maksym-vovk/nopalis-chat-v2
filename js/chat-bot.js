@@ -1023,9 +1023,11 @@ class ChatBot {
         const headerProfileInfo = document.querySelector('.header-info')
         const profile = document.querySelector('.info-panel')
         const closeProfileBtn = document.querySelector('#closeProfileBtn')
+        const backToChat = document.querySelector('#detailsBtn')
 
         headerProfileInfo.addEventListener('click', () => this.openProfile(profile))
         closeProfileBtn.addEventListener('click', () => this.closeProfile(profile))
+        backToChat.addEventListener('click', () => this.closeProfile(profile))
     }
 
     openProfile(profile) {
