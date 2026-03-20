@@ -311,6 +311,10 @@ body.chat-scroll-lock {
     opacity: 0;
 }
 
+.info-header img{
+    border-radius: 50%;
+}
+
 .info-panel.active .info-header {
     animation: infoItemSlideIn 0.5s ease-out forwards;
     animation-delay: 0.05s;
@@ -1277,11 +1281,18 @@ body.chat-scroll-lock {
     justify-content: center;
     gap: 8px;
     margin-top: 12px;
+    margin-top: auto;
     align-self: center;
     max-width: 100%;
     width: 100%;
 }
 
+.info-btn {
+    width: fit-content;
+    margin: 0 auto;
+}
+
+.info-btn,
 .message-button,
 .form-button {
     background: rgba(28, 171, 95, 1);
@@ -1299,6 +1310,7 @@ body.chat-scroll-lock {
     min-width: 120px;
 }
 
+.info-btn:hover,
 .message-button:hover,
 .form-button:hover {
     background: rgba(28, 171, 95, 0.8);
