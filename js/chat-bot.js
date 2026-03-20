@@ -1917,7 +1917,7 @@ const chatSteps = [
             {
                 text: `<div class="audio"><img src="${basePath}images/cb-ava.png" alt="Avatar" class="message-avatar"><div class="audio-player"><div class="controls"><button class="play-pause-button play" id="audioControlButton"></button></div><audio><source src="${basePath}media/1.mp3" type="audio/mpeg"></audio><div class="progress-wrapper"><div class="progress"><div class="progress-bar"></div></div></div><div class="audio-time"><span class="audio-current__time">0:00</span></div></div></div>`,
                 typingIndicator: 'mic',
-                typingDelay: 2000
+                typingDelay: 15000
             }
         ],
         options: [
@@ -2574,13 +2574,13 @@ document.addEventListener('DOMContentLoaded', () => {
         messagesContainer: '#chatMessages',
         root: '.chat-bot',
         steps: chatSteps,
-        typingDelayPerChar: 15,  // ms per character (default: 15) human style: 100-250
-        typingDelayMin: 600,     // minimum delay in ms (default: 600-1500)
-        typingDelayMax: 1000,    // maximum delay in ms (default: 3000-5000)
+        typingDelayPerChar: 250,  // ms per character (default: 15) human style: 100-250
+        typingDelayMin: 1500,     // minimum delay in ms (default: 600-1500)
+        typingDelayMax: 5000,    // maximum delay in ms (default: 3000-5000)
         startQueue: {
             enabled: true,
-            // delay: () => 10000 + Math.floor(Math.random() * 5001), // 10–15 sec
-            delay: () => 1000,
+            delay: () => 10000 + Math.floor(Math.random() * 5001), // 10–15 sec
+            // delay: () => 3000,
             text: `
                 <h3 class="chat-queue-card__title">Вы 1 в очереди 🥇</h3>
                 <p class="chat-queue-card__text">Врач скоро подключится к чату. Пожалуйста, подождите немного.</p>
