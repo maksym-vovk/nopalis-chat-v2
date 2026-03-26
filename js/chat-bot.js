@@ -474,8 +474,6 @@ class ChatBot {
                             ? step.typingDelay
                             : this._calcTypingDelay(msg);
 
-                console.log(delay, 'messageDelay');
-
                 const indicatorType =
                     messageTypingIndicator ||
                     step.typingIndicator ||
@@ -490,8 +488,6 @@ class ChatBot {
                 const readTimeout = setTimeout(() => {
                     this._setMessageStatus(this._lastUserMessageEl, 'read');
                 }, readDelay);
-
-                console.log(readDelay, 'markReadDelay');
 
                 // Show typing
                 await this._showTyping(partTypingDelay, indicatorType);
