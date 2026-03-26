@@ -2018,15 +2018,15 @@ const chatSteps = [
         id: 'comments_1',
         messages: [
             {
-                text: `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-1.jpg" alt="" class="chat-review__avatar"><b>María, 44 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Para ser sincera, al principio tenía mis dudas. Pedí cuatro frascos a la vez y me alegro de haberlo hecho. Después del primer mes, ya veía resultados; empecé a bajar de peso poco a poco.</p></div></div>`,
+                text: `<div class="chat-review"><span class="chat-review__label">Reenviado</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-1.jpg" alt="" class="chat-review__avatar"><b>María, 44 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Para ser sincera, al principio tenía mis dudas. Pedí cuatro frascos a la vez y me alegro de haberlo hecho. Después del primer mes, ya veía resultados; empecé a bajar de peso poco a poco.</p></div></div>`,
                 typingDelay: 1500
             },
             {
-                text: `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-2.jpg" alt="" class="chat-review__avatar"><b>Carmen, 52 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Muchas gracias por todo. No podía encontrar nada durante mucho tiempo, pero ahora realmente noté la diferencia después de solo unas semanas.</p></div></div>`,
+                text: `<div class="chat-review"><span class="chat-review__label">Reenviado</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-2.jpg" alt="" class="chat-review__avatar"><b>Carmen, 52 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Muchas gracias por todo. No podía encontrar nada durante mucho tiempo, pero ahora realmente noté la diferencia después de solo unas semanas.</p></div></div>`,
                 typingDelay: 500
             },
             {
-                text: `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-3.jpg" alt="" class="chat-review__avatar"><b>Lucía, 39 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Al principio pedí dos frascos, pero luego me di cuenta de que necesitaba seguir usándolos. Después de un mes, empecé a notar que la ropa me quedaba más holgada.</p></div></div>`,
+                text: `<div class="chat-review"><span class="chat-review__label">Reenviado</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-3.jpg" alt="" class="chat-review__avatar"><b>Lucía, 39 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Al principio pedí dos frascos, pero luego me di cuenta de que necesitaba seguir usándolos. Después de un mes, empecé a notar que la ropa me quedaba más holgada.</p></div></div>`,
                 typingDelay: 500
             }
         ],
@@ -2045,15 +2045,15 @@ const chatSteps = [
         id: 'comments_2',
         messages: [
             {
-                text: `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-4.jpg" alt="" class="chat-review__avatar"><b>Ana, 47 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">No creí al principio que me ayudaría, pero decidí probarlo. Ya estoy terminando mi segundo frasco y estoy pensando en pedir más.</p></div></div>`,
+                text: `<div class="chat-review"><span class="chat-review__label">Reenviado</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-4.jpg" alt="" class="chat-review__avatar"><b>Ana, 47 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">No creí al principio que me ayudaría, pero decidí probarlo. Ya estoy terminando mi segundo frasco y estoy pensando en pedir más.</p></div></div>`,
                 typingDelay: 1500
             },
             {
-                text: `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-5.jpg" alt="" class="chat-review__avatar"><b>Rosa, 55 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Gracias. Bajar de peso después de los 50 es muy difícil, pero con este producto, es un poco más fácil de controlar.</p></div></div>`,
+                text: `<div class="chat-review"><span class="chat-review__label">Reenviado</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-5.jpg" alt="" class="chat-review__avatar"><b>Rosa, 55 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Gracias. Bajar de peso después de los 50 es muy difícil, pero con este producto, es un poco más fácil de controlar.</p></div></div>`,
                 typingDelay: 500
             },
             {
-                text: `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-6.jpg" alt="" class="chat-review__avatar"><b>José, 41 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Al principio pedí dos frascos para probar. Después entendí que mejor tomar un curso. Ahora ya es tercer bote y hay resultado.</p></div></div>`,
+                text: `<div class="chat-review"><span class="chat-review__label">Reenviado</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-6.jpg" alt="" class="chat-review__avatar"><b>José, 41 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Al principio pedí dos frascos para probar. Después entendí que mejor tomar un curso. Ahora ya es tercer bote y hay resultado.</p></div></div>`,
                 typingDelay: 500
             },
         ],
@@ -2072,15 +2072,15 @@ const chatSteps = [
         id: 'comments_3',
         messages: [
             {
-                text: `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-7.jpg" alt="" class="chat-review__avatar"><b>Teresa, 49 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Me alegro mucho de haber pedido cuatro frascos a la vez. Solo empiezas a ver cambios después del primero, y luego los resultados se hacen más notorios.</p></div></div>`,
+                text: `<div class="chat-review"><span class="chat-review__label">Reenviado</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-7.jpg" alt="" class="chat-review__avatar"><b>Teresa, 49 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Me alegro mucho de haber pedido cuatro frascos a la vez. Solo empiezas a ver cambios después del primero, y luego los resultados se hacen más notorios.</p></div></div>`,
                 typingDelay: 1500
             },
             {
-                text: `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-8.jpg" alt="" class="chat-review__avatar"><b>Patricia, 37 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Gracias por el producto. Mi pérdida de peso no es drástica, sino gradual y constante, y me gusta.</p></div></div>`,
+                text: `<div class="chat-review"><span class="chat-review__label">Reenviado</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-8.jpg" alt="" class="chat-review__avatar"><b>Patricia, 37 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Gracias por el producto. Mi pérdida de peso no es drástica, sino gradual y constante, y me gusta.</p></div></div>`,
                 typingDelay: 500
             },
             {
-                text: `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-9.jpg" alt="" class="chat-review__avatar"><b>Elena, 60 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Estaba leyendo las reseñas durante mucho tiempo antes de comprar. Ahora yo entiendo que ha valido la pena pedirlo, me siento mucho mejor.</p></div></div>`,
+                text: `<div class="chat-review"><span class="chat-review__label">Reenviado</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-9.jpg" alt="" class="chat-review__avatar"><b>Elena, 60 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Estaba leyendo las reseñas durante mucho tiempo antes de comprar. Ahora yo entiendo que ha valido la pena pedirlo, me siento mucho mejor.</p></div></div>`,
                 typingDelay: 500
             },
         ],
@@ -2099,15 +2099,15 @@ const chatSteps = [
         id: 'comments_4',
         messages: [
             {
-                text: `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-10.jpg" alt="" class="chat-review__avatar"><b>Miguel, 53 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Lo compré para probarlo. Después de unas semanas, noté cambios, así que pedí más frascos para continuar.</p></div></div>`,
+                text: `<div class="chat-review"><span class="chat-review__label">Reenviado</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-10.jpg" alt="" class="chat-review__avatar"><b>Miguel, 53 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Lo compré para probarlo. Después de unas semanas, noté cambios, así que pedí más frascos para continuar.</p></div></div>`,
                 typingDelay: 1500
             },
             {
-                text: `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-11.jpg" alt="" class="chat-review__avatar"><b>Guadalupe, 45 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Estoy muy agradecida. Noté que empecé a bajar de peso después del primer mes. Menos mal que compré varios botes enseguida.</p></div></div>`,
+                text: `<div class="chat-review"><span class="chat-review__label">Reenviado</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-11.jpg" alt="" class="chat-review__avatar"><b>Guadalupe, 45 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Estoy muy agradecida. Noté que empecé a bajar de peso después del primer mes. Menos mal que compré varios botes enseguida.</p></div></div>`,
                 typingDelay: 500
             },
             {
-                text: `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-12.jpg" alt="" class="chat-review__avatar"><b>Sofía, 38 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Pensaba comprar un frasco, pero pedí tres. Ahora entiendo que hice lo correcto, porque los resultados no aparecieron de inmediato.</p></div></div>`,
+                text: `<div class="chat-review"><span class="chat-review__label">Reenviado</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-12.jpg" alt="" class="chat-review__avatar"><b>Sofía, 38 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Pensaba comprar un frasco, pero pedí tres. Ahora entiendo que hice lo correcto, porque los resultados no aparecieron de inmediato.</p></div></div>`,
                 typingDelay: 500
             },
         ],
@@ -2126,15 +2126,15 @@ const chatSteps = [
         id: 'comments_5',
         messages: [
             {
-                text: `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-13.jpg" alt="" class="chat-review__avatar"><b>Raúla, 58 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Gracias por este producto. Los resultados son excelentes para mi edad y me siento mucho mejor.</p></div></div>`,
+                text: `<div class="chat-review"><span class="chat-review__label">Reenviado</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-13.jpg" alt="" class="chat-review__avatar"><b>Raúla, 58 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Gracias por este producto. Los resultados son excelentes para mi edad y me siento mucho mejor.</p></div></div>`,
                 typingDelay: 1500
             },
             {
-                text: `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-14.jpg" alt="" class="chat-review__avatar"><b>Daniel, 46 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Leía las reseñas y decidí probarlo. Ya noté cambios después de la primera lata y sigo con el tratamiento.</p></div></div>`,
+                text: `<div class="chat-review"><span class="chat-review__label">Reenviado</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-14.jpg" alt="" class="chat-review__avatar"><b>Daniel, 46 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Leía las reseñas y decidí probarlo. Ya noté cambios después de la primera lata y sigo con el tratamiento.</p></div></div>`,
                 typingDelay: 500
             },
             {
-                text: `<div class="chat-review"><span class="chat-review__label">Переслано</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-15.jpg" alt="" class="chat-review__avatar"><b>Alejandro, 62 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Al principio dudaba en comprarlo. Pero vi resultados, así que pedí más para consolidar el efecto.</p></div></div>`,
+                text: `<div class="chat-review"><span class="chat-review__label">Reenviado</span><div class="chat-review__wrapper"><div class="chat-review__header"><img src="${basePath}images/comm-ava-15.jpg" alt="" class="chat-review__avatar"><b>Alejandro, 62 años</b><span class="chat-review__stars">${STARS_5}</span></div><p class="chat-review__text">Al principio dudaba en comprarlo. Pero vi resultados, así que pedí más para consolidar el efecto.</p></div></div>`,
                 typingDelay: 500
             },
         ],
@@ -2667,13 +2667,13 @@ document.addEventListener('DOMContentLoaded', () => {
             delay: () => 10000 + Math.floor(Math.random() * 5001), // 10–15 sec
             // delay: () => 1000,
             text: `
-                <h3 class="chat-queue-card__title">Вы 1 в очереди 🥇</h3>
-                <p class="chat-queue-card__text">Врач скоро подключится к чату. Пожалуйста, подождите немного.</p>
+                <h3 class="chat-queue-card__title">Eres el primero en la lista 🥇</h3>
+                <p class="chat-queue-card__text">El médico se conectará enseguida al chat. Por favor, espera un momento.</p>
             `,
             showTyping: false,
             typingIndicator: 'dots',
             showCountdown: true,
-            countdownLabel: 'Залишилось:',
+            countdownLabel: 'Quedan:',
         },
         // storageKey: 'flexible_chat_bot_state', // прибрали, щоб не зберігати історію
         onAnswer: (step, answer, state) => {
