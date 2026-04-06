@@ -1930,7 +1930,7 @@ const chatSteps = [
             {
                 text: `<div class="audio"><img src="${basePath}images/cb-ava.png" alt="Avatar" class="message-avatar"><div class="audio-player"><div class="controls"><button class="play-pause-button play" id="audioControlButton"></button></div><audio><source src="${basePath}media/1.mp3" type="audio/mpeg"></audio><div class="progress-wrapper"><div class="progress"><div class="progress-bar"></div></div></div><div class="audio-time"><span class="audio-current__time">0:00</span></div></div></div>`,
                 typingIndicator: 'mic',
-                typingDelay: 12000 //12000
+                typingDelay: 1 //12000
             }
         ],
         options: [
@@ -2450,7 +2450,7 @@ const chatSteps = [
         ],
         options: [
             {label: 'Confirmar el pedido', value: 'confirm', color: 'green'},
-            {label: 'No estoy seguro(a)', value: 'not_sure'},
+            // {label: 'No estoy seguro(a)', value: 'not_sure'},
             {label: 'Volver', value: 'back'},
         ],
         shouldSkip: ({state}) => state.answers.course_packs === 2,
@@ -2460,12 +2460,12 @@ const chatSteps = [
                 return bot._getStepIndex('course_choice')
 
             }
-            if (option.value === 'not_sure') {
-                state.answers.returnedToCourseChoice = true;
-
-                // return 6;
-                return bot._getStepIndex('course_choice')
-            }
+            // if (option.value === 'not_sure') {
+            //     state.answers.returnedToCourseChoice = true;
+            //
+            //     // return 6;
+            //     return bot._getStepIndex('course_choice')
+            // }
 
             return bot._getStepIndex('course_confirm');
         },
@@ -2659,13 +2659,13 @@ document.addEventListener('DOMContentLoaded', () => {
         messagesContainer: '#chatMessages',
         root: '.chat-bot',
         steps: chatSteps,
-        typingDelayPerChar: 50,  // ms per character (default: 15) human style: 100-250
-        typingDelayMin: 2000,     // minimum delay in ms (default: 600-1500)
-        typingDelayMax: 4000,    // maximum delay in ms (default: 3000-5000)
+        typingDelayPerChar: 1,  // ms per character (default: 15) 50
+        typingDelayMin: 1,     // minimum delay in ms (default: 600-1500) 2000
+        typingDelayMax: 1,    // maximum delay in ms (default: 3000-5000) 4000
         startQueue: {
             enabled: true,
-            delay: () => 10000 + Math.floor(Math.random() * 5001), // 10–15 sec
-            // delay: () => 1000,
+            // delay: () => 10000 + Math.floor(Math.random() * 5001), // 10–15 sec
+            delay: () => 1000,
             text: `
                 <h3 class="chat-queue-card__title">Eres el primero en la lista 🥇</h3>
                 <p class="chat-queue-card__text">El médico se conectará enseguida al chat. Por favor, espera un momento.</p>
