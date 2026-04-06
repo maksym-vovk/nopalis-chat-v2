@@ -2768,7 +2768,7 @@ b {
     font-size: 14px;
     position: absolute;
     right: 4px;
-    bottom: 4px;
+    bottom: 5px;
     transition: background-color 0.2s ease, transform 0.1s ease;
 }
 
