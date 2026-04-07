@@ -1891,29 +1891,29 @@ const chatSteps = [
             }
         }
     },
-    {
-        id: 'intro_after_data',
-        messages: ['He registrado los datos, continuaremos con el descuento 👇'],
-        options: [
-            {label: 'Sí, quiero', value: 'yes'},
-            {label: 'No', value: 'back'},
-        ],
-        nextStep: ({option, state, bot}) => {
-            // якщо користувач хоче "назад" — збережемо в відповіді
-            if (option.value === 'back') {
-                state.answers.exitReason = 'user_back';
-                // логіка повернення – в onAnswer (redirect/history.back)
-            }
-            return bot._getStepIndex('goal');
-        },
-        shouldSkip: ({state}) => {
-            // Показуємо тільки якщо натиснули кнопку старту чату
-            return !state.answers.clicked_start_chat;
-        },
-        onEnter: (bot) => {
-            bot._setPixelLeadImage()
-        }
-    },
+    // {
+    //     id: 'intro_after_data',
+    //     messages: ['He registrado los datos, continuaremos con el descuento 👇'],
+    //     options: [
+    //         {label: 'Sí, quiero', value: 'yes'},
+    //         {label: 'No', value: 'back'},
+    //     ],
+    //     nextStep: ({option, state, bot}) => {
+    //         // якщо користувач хоче "назад" — збережемо в відповіді
+    //         if (option.value === 'back') {
+    //             state.answers.exitReason = 'user_back';
+    //             // логіка повернення – в onAnswer (redirect/history.back)
+    //         }
+    //         return bot._getStepIndex('goal');
+    //     },
+    //     shouldSkip: ({state}) => {
+    //         // Показуємо тільки якщо натиснули кнопку старту чату
+    //         return !state.answers.clicked_start_chat;
+    //     },
+    //     onEnter: (bot) => {
+    //         bot._setPixelLeadImage()
+    //     }
+    // },
     {
         id: 'goal',
         messages: ['¿Cuántos kilos quieres perder?'],
@@ -2534,7 +2534,6 @@ const chatSteps = [
         expectFreeInput: true,
         inputPlaceholder: 'Nombre y apellido',
     },
-
     {
         id: 'contact_phone',
         messages: ['Por favor, facilita tu número de teléfono para la entrega.'],
