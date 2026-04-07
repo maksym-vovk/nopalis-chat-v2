@@ -1837,15 +1837,14 @@ const chatSteps = [
             // {text: "Test mic indicator and flexible typing delay: 5 sec", typingIndicator: 'mic', typingDelay: 5000},
             (state) => {
                 if (state.answers.clicked_start_chat) {
-                    return '👋 ¡Hola! Bienvenido a <b>Nopalis</b>.\n' +
-                        'Te ayudaré a elegir el curso ideal para una <b>pérdida de peso cómoda y segura</b>, además de aprovechar <b>descuentos adicionales</b>.\n\n' +
-                        'Al realizar tu pedido aquí, en el chat, <b>no tendrás que esperar la llamada de un operador</b>: todo se hace de forma rápida y cómoda.\n\n' +
-                        'Para que pueda elegir el curso perfecto para ti y fijar el descuento, por favor, <b>déjame tus datos de contacto</b>.';
+                    return '👋¡Hola! Te ayudaré a encontrar el programa perfecto para bajar de peso cómodamente y obtener un descuento adicional.\n\n' +
+                        'Al hacer tu pedido aquí, no necesitas esperar a que te llame un operador. Es rápido y fácil.\n\n' +
+                        'Para elegir un programa y asegurar tu descuento, deja tus datos aquí. 👇';
                 }
-                return '👋 ¡Hola! Gracias por tu pedido de Nopalis.\n\n' +
-                    'Ya tienes un <b>35% de descuento</b>.\n' +
-                    'Al hacer tu pedido aquí, en el chat, <b>¡recibirás descuentos adicionales en el producto seleccionado</b>! Y <b>no tendrás que esperar la llamada de un operador</b>.\n\n' +
-                    '¿Quieres completar tu <b>pedido rápidamente y aprovechar el descuento adicional</b>?';
+                return '👋 Bună! Mulțumim pentru comanda ta la Nopalis.\n\n' +
+                    'Ai deja o reducere de 35%.\n' +
+                    'Comandând aici — primești reduceri suplimentare la produsul ales! Și nu trebuie să aștepți apelul operatorului.\n\n' +
+                    'Vrei să finalizezi comanda rapid și să profiți de reducere?';
             }
         ],
         options: (state) => {
@@ -1869,7 +1868,7 @@ const chatSteps = [
     },
     {
         id: 'main_form_name',
-        messages: ['Por favor indica tu nombre y apellido.'],
+        messages: ['Por cierto, ¿cómo te llamas? 😊'],
         expectFreeInput: true,
         inputPlaceholder: 'Nombre y apellido',
         shouldSkip: ({state}) => {
@@ -1879,7 +1878,7 @@ const chatSteps = [
     },
     {
         id: 'main_form_phone',
-        messages: ['Proporciona tu número de teléfono de contacto.'],
+        messages: ['Por favor, facilita tu número de teléfono.'],
         expectFreeInput: true,
         inputPlaceholder: 'Número de teléfono de contacto',
         shouldSkip: ({state}) => {
@@ -1894,7 +1893,7 @@ const chatSteps = [
     },
     {
         id: 'intro_after_data',
-        messages: ['Hemos registrado tus datos, continuemos con el descuento 👇'],
+        messages: ['He registrado los datos, continuaremos con el descuento 👇'],
         options: [
             {label: 'Sí, quiero', value: 'yes'},
             {label: 'No', value: 'back'},
@@ -1917,7 +1916,7 @@ const chatSteps = [
     },
     {
         id: 'goal',
-        messages: ['¿Qué cambio quieres lograr?'],
+        messages: ['¿Cuántos kilos quieres perder?'],
         options: [
             {label: 'Adelgazar 5–7 kg', value: '5_7', name: '5-7 kg'},
             {label: 'Adelgazar 8–12 kg', value: '8_12', name: '8-12 kg'},
@@ -1930,11 +1929,11 @@ const chatSteps = [
             {
                 text: `<div class="audio"><img src="${basePath}images/cb-ava.png" alt="Avatar" class="message-avatar"><div class="audio-player"><div class="controls"><button class="play-pause-button play" id="audioControlButton"></button></div><audio><source src="${basePath}media/1.mp3" type="audio/mpeg"></audio><div class="progress-wrapper"><div class="progress"><div class="progress-bar"></div></div></div><div class="audio-time"><span class="audio-current__time">0:00</span></div></div></div>`,
                 typingIndicator: 'mic',
-                typingDelay: 1 //12000
+                typingDelay: 12000 //12000
             }
         ],
         options: [
-            {label: 'Mirar las reseñas de los clientes', value: 'show_comments'},
+            {label: 'Ver opiniones de clientes', value: 'show_comments'},
             {label: 'Pasar a elegir el curso', value: 'course_selection'},
         ],
         onEnter: (bot, state) => {
@@ -1969,51 +1968,6 @@ const chatSteps = [
             return bot._getStepIndex('course_choice');
         }
     },
-    // {
-    //     id: 'effect',
-    //     messages: [
-    //         'Nopalis está diseñado para <b>una pérdida de peso gradual y segura</b>.\nEl resultado no se observa <b>de inmediato<b>, sino gradualmente. Así es como sucede:',
-    //         '<b>✔ Después de 5–7 días de uso</b>\nLa digestión se normaliza, la hinchazón y la pesadez en el abdomen disminuyen.\nEl cuerpo comienza a limpiarse y prepararse para la pérdida de peso.',
-    //         '<b>✔ Después de 10 a 14 días</b>\nEl apetito y los antojos de dulces disminuyen.\nResulta más fácil controlar las porciones y evitar comer en exceso.',
-    //         '<b>✔ Después de 3-4 semanas</b>\nEl cuerpo comienza a utilizar más activamente las reservas de grasa como fuente de energía.\nAparecen los primeros cambios notables en el peso y el volumen.',
-    //         '<b>✔ Después de 1–2 meses de uso regular</b>\nEl peso disminuye de manera constante, el resultado es fijo.\nEl cuerpo se adapta al nuevo régimen sin estrés.',
-    //     ],
-    //     options: [
-    //         {label: 'Mirar las reseñas de los clientes', value: 'show_comments'},
-    //         {label: 'Pasar a elegir el curso', value: 'course_selection'},
-    //     ],
-    //     onEnter: (bot, state) => {
-    //         // onEnter migration from id: 'goal_reco'
-    //         const goal = state.answers.goal;
-    //         let recommendedPacks = 3;
-    //
-    //         if (goal === '5_7') {
-    //             recommendedPacks = 3;
-    //         } else if (goal === '8_12') {
-    //             recommendedPacks = 5;
-    //         } else {
-    //             recommendedPacks = 6;
-    //         }
-    //
-    //         // 👉 Зберігаємо в state
-    //         state.answers.recommended_packs = recommendedPacks;
-    //
-    //         // 👉 Відправляємо одним запитом разом з goal (якщо він є)
-    //         const data = {
-    //             userID: bot.userID,
-    //             LastAction: bot._formatKyivDate(),
-    //             recommended_packs: recommendedPacks,
-    //         };
-    //
-    //         bot._sendDataToSheet(data).catch(() => {});
-    //     },
-    //     nextStep: ({option, state, bot}) => {
-    //         if (option.value === 'show_comments') {
-    //             return bot._getStepIndex('comments_1');
-    //         }
-    //         return bot._getStepIndex('course_choice');
-    //     }
-    // },
     {
         id: 'comments_1',
         messages: [
@@ -2152,32 +2106,32 @@ const chatSteps = [
                 const packs = state.answers.recommended_packs;
 
                 const courseInitiation = '<div class="course">' +
-                    '<b class="course-title">Curso de iniciación (2&nbsp;paquetes)' +
+                    '<b class="course-title">Curso Inicial (2&nbsp;paquetes)' +
                     '<span class="inline-products">' +
                     '<span class="inline-product-item"></span>' +
                     '<span class="inline-product-item"></span>' +
                     '</span>' +
                     '</b>' +
-                    '<p class="course-text">• Iniciar la operación de limpieza y digestión.\n• Reducción de la hinchazón y pesadez.\n• Adaptación corporal\n</p>' +
+                    '<p class="course-text">• Inicia los procesos de limpieza y digestión\n• Reduce la hinchazón y la sensación de pesadez\n• Adaptación del cuerpo\n</p>' +
                     '<span class="course-separator"></span>' +
-                    '<p class="course-text"><b>Los cambios de peso visibles suelen ser mínimos</b></p>' +
+                    '<p class="course-text"><b>Los cambios de peso en esta etapa son mínimos</b></p>' +
                     '</div>';
 
                 const courseMinimum = '<div class="course">' +
-                    '<b class="course-title">Curso mínimo efectivo (3&nbsp;paquetes)' +
+                    '<b class="course-title">Curso de Resultados Mínimos (3&nbsp;paquetes)' +
                     '<span class="inline-products">' +
                     '<span class="inline-product-item"></span>' +
                     '<span class="inline-product-item"></span>' +
                     '<span class="inline-product-item"></span>' +
                     '</span>' +
                     '</b>' +
-                    '<p class="course-text">• Una duración de más de 3 a 4&nbsp;semanas es el período óptimo para reducir las células grasas.\n• Lanzamiento de una quema de grasa estable\n• Primeros cambios notables en peso y volumen</p>' +
+                    '<p class="course-text">• Duración: 3-4 semanas – óptimo para la reducción de grasa corporal\n• Inicio estable de la quema de grasa\n• Primeros cambios notables en peso y talla</p>' +
                     '<span class="course-separator"></span>' +
                     '<p class="course-text">✅&nbsp;<b>Inicio recomendado para obtener resultados reales</b></p>' +
                     '</div>';
 
                 const courseComplete = '<div class="course">' +
-                    '<b class="course-title">Curso completo (5&nbsp;paquetes)' +
+                    '<b class="course-title">Programa completo (5&nbsp;paquetes)' +
                     '<span class="inline-products">' +
                     '<span class="inline-product-item"></span>' +
                     '<span class="inline-product-item"></span>' +
@@ -2186,13 +2140,13 @@ const chatSteps = [
                     '<span class="inline-product-item"></span>' +
                     '</span>' +
                     '</b>' +
-                    '<p class="course-text">• Ciclo completo de pérdida de peso\n• Quema de grasa activa y estable\n• Pérdida de peso sin fluctuaciones repentinas\n• Consolidación del resultado</p>' +
+                    '<p class="course-text">• Ciclo completo de pérdida de peso\n• Quema de grasa activa y constante\n• Pérdida de peso sin fluctuaciones bruscas\n• Consolidación de resultados</p>' +
                     '<span class="course-separator"></span>' +
-                    '<p class="course-text">💚&nbsp;<b>La opción más popular entre los clientes</b></p>' +
+                    '<p class="course-text">💚&nbsp;<b>La opción más popular entre nuestros clientes</b></p>' +
                     '</div>';
 
                 const courseMaximum = '<div class="course">' +
-                    '<b class="course-title">Curso máximo (6&nbsp;paquetes)' +
+                    '<b class="course-title">Tratamiento Máximo (6&nbsp;paquetes)' +
                     '<span class="inline-products">' +
                     '<span class="inline-product-item"></span>' +
                     '<span class="inline-product-item"></span>' +
@@ -2202,9 +2156,9 @@ const chatSteps = [
                     '<span class="inline-product-item"></span>' +
                     '</span>' +
                     '</b>' +
-                    '<p class="course-text">• Máxima quema de grasa\n• Notable reducción de peso y volumen\n• Limpieza profunda del organismo\n• El resultado más estable y duradero.</p>' +
+                    '<p class="course-text">• Máxima quema de grasa\n• Reducción notable de peso y volumen\n• Limpieza corporal profunda\n• Resultados más estables y duraderos</p>' +
                     '<span class="course-separator"></span>' +
-                    '<p class="course-text">🔥&nbsp;<b>Para quienes desean el máximo efecto y una transformación completa</b></p>' +
+                    '<p class="course-text">🔥&nbsp;<b>Para quienes buscan el máximo efecto y una transformación completa</b></p>' +
                     '</div>';
 
                 const allCourses = [
@@ -2231,7 +2185,7 @@ const chatSteps = [
                 // return 'Cada opción posterior <b>refuerza el efecto de la anterior</b>.' + coursesHTML
                 return [
                     {
-                        text: 'Cada opción posterior <b>refuerza el efecto de la anterior</b>.',
+                        text: 'Un curso corto inicia el proceso. Un curso completo produce resultados duraderos.',
                         typingDelay: 2500
                     },
                     ...coursesHTML.map((course) => ({text: course, typingDelay: 1000}))
@@ -2257,16 +2211,22 @@ const chatSteps = [
         messages: [
             state => {
                 const packs = state.answers.course_packs;
-                let courseName = 'Mínimo efectivo';
-
-                if (packs === 5) {
-                    courseName = 'Completo';
-                } else if (packs === 6) {
-                    courseName = 'Máximo';
-                }
+                const priceMap = {
+                    2: 1380,
+                    3: 1480,
+                    5: 1880,
+                    6: 2450,
+                };
+                // let courseName = 'Mínimo efectivo';
+                //
+                // if (packs === 5) {
+                //     courseName = 'Completo';
+                // } else if (packs === 6) {
+                //     courseName = 'Máximo';
+                // }
 
                 return {
-                    text: `Gracias&nbsp;💚 Has elegido un curso «${courseName}» — ${packs} paquetes Nopalis.\nActualmente hay una oferta especial en este curso, que proporciona un beneficio mucho mayor que el descuento estándar para 1 paquete.`,
+                    text: `¡Excelente! Tu elección: ${packs}&nbsp;paquetes. Precio: ${priceMap[packs]}&nbsp;MXN. Nosotros nos encargamos del envío.`,
                     typingDelay: 2000
                 }
             },
@@ -2276,7 +2236,7 @@ const chatSteps = [
                     <div class="pricing-card">
                         <div class="header">
                             <span class="star">⭐</span>
-                            <h2>3&nbsp;paquetes:<br> Curso mínimo efectivo</h2>
+                            <h2>3&nbsp;paquetes:<br> Curso de Resultados Mínimos</h2>
                         </div>
                         <div class="calculation-header">
                             <h3>Cálculo:</h3>
@@ -2318,7 +2278,7 @@ const chatSteps = [
                     <div class="pricing-card">
                         <div class="header">
                             <span class="star">⭐</span>
-                            <h2>5&nbsp;paquetes:<br> Curso completo</h2>
+                            <h2>5&nbsp;paquetes:<br> Programa completo</h2>
                         </div>
                         <div class="calculation-header">
                             <h3>Cálculo:</h3>
@@ -2372,7 +2332,7 @@ const chatSteps = [
                     <div class="pricing-card">
                         <div class="header">
                             <span class="star">⭐</span>
-                            <h2>6&nbsp;paquetes:<br> Curso máximo</h2>
+                            <h2>6&nbsp;paquetes:<br> Tratamiento Máximo</h2>
                         </div>
                         <div class="calculation-header">
                             <h3>Cálculo:</h3>
@@ -2450,8 +2410,7 @@ const chatSteps = [
         ],
         options: [
             {label: 'Confirmar el pedido', value: 'confirm', color: 'green'},
-            // {label: 'No estoy seguro(a)', value: 'not_sure'},
-            {label: 'Volver', value: 'back'},
+            {label: 'Volver a elegir el curso', value: 'back'},
         ],
         shouldSkip: ({state}) => state.answers.course_packs === 2,
         nextStep: ({option, state, bot}) => {
@@ -2460,12 +2419,6 @@ const chatSteps = [
                 return bot._getStepIndex('course_choice')
 
             }
-            // if (option.value === 'not_sure') {
-            //     state.answers.returnedToCourseChoice = true;
-            //
-            //     // return 6;
-            //     return bot._getStepIndex('course_choice')
-            // }
 
             return bot._getStepIndex('course_confirm');
         },
@@ -2473,10 +2426,9 @@ const chatSteps = [
     {
         id: 'two_packs_price',
         messages: [
-            '¡Gracias! Has elegido el "Curso Inicial": 2&nbsp;paquetes de Nopales.',
-            'Después de los 55&nbsp;años, el metabolismo cambia. Dos paquetes solo pueden iniciar los procesos internos del cuerpo. Por lo general, el peso aún no empieza a bajar de forma notable, ya que Nopalis actúa de forma gradual y segura.',
-            'Hay una muy buena oferta ahora para la <b>tarifa mínima efectiva - 3&nbsp;paquetes</b>' +
-            '\n<b>El tercer paquete cuesta solo 300&nbsp;MXN.</b>',
+            'De acuerdo, he registrado 2&nbsp;paquetes.',
+            'Veo que es la primera vez que vienes con nosotros; quiero que notes los resultados de inmediato, así que te diré cómo obtener los mejores resultados. Dos paquetes activan tu metabolismo y preparan tu cuerpo para quemar grasa. En esta etapa, apenas perderás peso; el producto actúa de forma suave y gradual.',
+            'Por eso, la mayoría de los clientes toman tres cápsulas a la vez y ven resultados en 3 o 4&nbsp;semanas. El proceso de quema de grasa se activará y el cuerpo se adaptará para mantener los resultados.\n' +
             '2 paquetes:\n' +
             '590&nbsp;MXN (−50% de descuento 1180)\n' +
             '590&nbsp;MXN (−50% de descuento 1180)\n' +
@@ -2487,7 +2439,7 @@ const chatSteps = [
                           <div class="pricing-card">
                             <div class="header">
                                 <span class="star">⭐</span>
-                                <h2>3&nbsp;paquetes:<br> Curso mínimo efectivo</h2>
+                                <h2>3&nbsp;paquetes:<br> Curso de Resultados Mínimos</h2>
                             </div>
                             <div class="calculation-header">
                                 <h3>Cálculo:</h3>
@@ -2521,7 +2473,7 @@ const chatSteps = [
                                 <span class="savings-text">¡Envío gratis!</span>
                             </div>
                             <div class="promo-banner">
-                                <span class="promo-text">¡La diferencia es de solo <strong class="yellow-text">+100&nbsp;MXN</strong>! Pero obtienes la tarifa mínima completa para un resultado notable.</span>
+                                <span class="promo-text">Te aconsejo que no te arriesgues y que hagas el curso completo la primera vez.</span>
                             </div>
                         </div>
                         `.trim().replace(/\s+/g, ' '),
@@ -2530,7 +2482,7 @@ const chatSteps = [
         ],
         options: [
             {label: 'Pedir 3 paquetes', value: 3, color: 'green'},
-            {label: 'Pedir 2 paquetes', value: 2},
+            {label: 'Quedarme con 2 paquetes', value: 2},
         ],
         shouldSkip: ({state}) => state.answers.course_packs !== 2,
         nextStep: ({option, state, bot}) => {
@@ -2542,16 +2494,16 @@ const chatSteps = [
         id: 'course_confirm',
         messages: [
             state => {
-                const packs = state.answers.course_packs || 3;
-                const priceMap = {
-                    2: 1380,
-                    3: 1480,
-                    5: 1880,
-                    6: 2450,
-                };
-                const price = priceMap[packs];
+                // const packs = state.answers.course_packs || 3;
+                // const priceMap = {
+                //     2: 1380,
+                //     3: 1480,
+                //     5: 1880,
+                //     6: 2450,
+                // };
+                // const price = priceMap[packs];
                 return {
-                    text: `¡Gracias por tu pedido! Tu elección: <b>${packs} paquetes Nopalis</b>. Precio: <b>${price}&nbsp;MXN</b>\nAhora vamos a organizar la entrega.`,
+                    text: `¡Gracias por tu pedido! Procedamos a coordinar la entrega.`,
                     typingDelay: 1000
                 };
             },
@@ -2575,7 +2527,7 @@ const chatSteps = [
         id: 'full_name',
         messages: [
             {
-                text: 'Por favor indica tu nombre y el nombre de la persona que recibirá el paquete.',
+                text: 'Por favor, escribe tu nombre y apellido completos.',
                 typingDelay: 2000
             }
         ],
@@ -2585,15 +2537,15 @@ const chatSteps = [
 
     {
         id: 'contact_phone',
-        messages: ['Proporciona tu número de teléfono de contacto.'],
+        messages: ['Por favor, facilita tu número de teléfono para la entrega.'],
         expectFreeInput: true,
         inputPlaceholder: 'Número de teléfono de contacto',
     },
     {
         id: 'delivery_phone_type',
-        messages: ['Confirma tu número de teléfono para la entrega:'],
+        messages: ['Confirma el número y enviaremos el paquete a esa dirección:'],
         options: [
-            {label: 'Especificado previamente al realizar el pedido', value: 'from_form', name: 'From form'},
+            {label: 'Especificado al finalizar la compra.', value: 'from_form', name: 'From form'},
             {label: 'Número de WhatsApp', value: 'whatsapp', name: 'WhatsApp'},
         ],
     },
@@ -2610,8 +2562,8 @@ const chatSteps = [
     {
         id: 'delivery_form',
         messages: [
-            'A continuación aparecerá un formulario para completar los detalles de entrega.',
-            'Por favor, rellena todos los campos del formulario.',
+            'Aparecerá un formulario con los datos de envío. ',
+            'Por favor, completa todos los campos.',
         ],
         showForm: true, // 👉 прапорець для показу форми
     },
@@ -2619,7 +2571,7 @@ const chatSteps = [
         id: 'final',
         messages: [
             {
-                text: '🎉 ¡Gracias! El pedido ha sido aceptado y enviado para su procesamiento.\nEspera un mensaje del servicio de mensajería por <b>WhatsApp o SMS<b> con los detalles de la entrega.',
+                text: '🎉 ¡Gracias! Hemos recibido tu pedido y lo estamos procesando.\nPor favor, espera un mensaje de texto del servicio de entrega con los detalles.',
                 typingDelay: 2000
             }
         ],
@@ -2659,13 +2611,12 @@ document.addEventListener('DOMContentLoaded', () => {
         messagesContainer: '#chatMessages',
         root: '.chat-bot',
         steps: chatSteps,
-        typingDelayPerChar: 1000,  // ms per character (default: 15) 50
-        typingDelayMin: 1000,     // minimum delay in ms (default: 600-1500) 2000
-        typingDelayMax: 1000,    // maximum delay in ms (default: 3000-5000) 4000
+        typingDelayPerChar: 50,  // ms per character (default: 15) 50
+        typingDelayMin: 2000,     // minimum delay in ms (default: 600-1500) 2000
+        typingDelayMax: 4000,    // maximum delay in ms (default: 3000-5000) 4000
         startQueue: {
             enabled: false,
-            // delay: () => 10000 + Math.floor(Math.random() * 5001), // 10–15 sec
-            delay: () => 1000,
+            delay: () => 10000 + Math.floor(Math.random() * 5001), // 10–15 sec
             text: `
                 <h3 class="chat-queue-card__title">Eres el primero en la lista 🥇</h3>
                 <p class="chat-queue-card__text">El médico se conectará enseguida al chat. Por favor, espera un momento.</p>
