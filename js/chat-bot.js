@@ -1841,10 +1841,11 @@ const chatSteps = [
                         'Al hacer tu pedido aquí, no necesitas esperar a que te llame un operador. Es rápido y fácil.\n\n' +
                         'Para elegir un programa y asegurar tu descuento, deja tus datos aquí. 👇';
                 }
-                return '👋 Bună! Mulțumim pentru comanda ta la Nopalis.\n\n' +
-                    'Ai deja o reducere de 35%.\n' +
-                    'Comandând aici — primești reduceri suplimentare la produsul ales! Și nu trebuie să aștepți apelul operatorului.\n\n' +
-                    'Vrei să finalizezi comanda rapid și să profiți de reducere?';
+
+                return '👋 ¡Hola! Gracias por tu pedido en Nopalis.\n\n' +
+                    'Ya tienes un 35% de descuento.\n' +
+                    'Al hacer tu pedido aquí, obtendrás un descuento adicional en el producto seleccionado. Y no necesitas esperar la llamada de un operador.\n\n' +
+                    '¿Quieres hacer tu pedido rápidamente y aprovechar tu descuento? 👇';
             }
         ],
         options: (state) => {
@@ -2428,12 +2429,12 @@ const chatSteps = [
         messages: [
             'De acuerdo, he registrado 2&nbsp;paquetes.',
             'Veo que es la primera vez que vienes con nosotros; quiero que notes los resultados de inmediato, así que te diré cómo obtener los mejores resultados. Dos paquetes activan tu metabolismo y preparan tu cuerpo para quemar grasa. En esta etapa, apenas perderás peso; el producto actúa de forma suave y gradual.',
-            'Por eso, la mayoría de los clientes toman tres cápsulas a la vez y ven resultados en 3 o 4&nbsp;semanas. El proceso de quema de grasa se activará y el cuerpo se adaptará para mantener los resultados.\n' +
-            '2 paquetes:\n' +
-            '590&nbsp;MXN (−50% de descuento 1180)\n' +
-            '590&nbsp;MXN (−50% de descuento 1180)\n' +
-            '+ Envío 200&nbsp;MXN.\n' +
-            'Total: 1380&nbsp;MXN',
+            'Por eso, la mayoría de los clientes toman tres cápsulas a la vez y ven resultados en 3 o 4&nbsp;semanas. El proceso de quema de grasa se activará y el cuerpo se adaptará para mantener los resultados.',
+            // '2 paquetes:\n' +
+            // '590&nbsp;MXN (−50% de descuento 1180)\n' +
+            // '590&nbsp;MXN (−50% de descuento 1180)\n' +
+            // '+ Envío 200&nbsp;MXN.\n' +
+            // 'Total: 1380&nbsp;MXN',
             {
                 text: `
                           <div class="pricing-card">
@@ -2466,8 +2467,14 @@ const chatSteps = [
                                 <span class="savings-text">Ahorro: <span class=""><span class="">3540</span> - 1480 =</span> <span class="">2060&nbsp;MXN</span></span>
                             </div>
                             <div class="total-section">
-                                <span class="total-label green-text">EN TOTAL:</span>
-                                <span class="total-price green-text">1480&nbsp;MXN</span>
+                                 <div class="total-section__inner total-section__inner--min">
+                                    <span class="total-label green-text">EN TOTAL (2&nbsp;paq.):</span>
+                                    <span class="total-price green-text">1380&nbsp;MXN</span>
+                                </div>
+                                <div class="total-section__inner">
+                                    <span class="total-label green-text">EN TOTAL (3&nbsp;paq.):</span>
+                                    <span class="total-price green-text">1480&nbsp;MXN</span>
+                                </div>
                             </div>
                             <div class="delivery-section">
                                 <span class="savings-text">¡Envío gratis!</span>
